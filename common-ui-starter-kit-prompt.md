@@ -171,7 +171,7 @@ Lyra의 CommonGame **패턴**을 학습용으로 단순화하되, **핵심 3-cla
 **코딩 규약 (반드시 준수 — 레퍼런스 §2)**
 
 - **프로젝트 클래스 프리픽스 `Cu`**: 모든 프로젝트 고유 C++ 클래스는 UE 타입 프리픽스(`U`/`A`/`F`/`E`) 뒤에 **`Cu`**를 붙인다(예: `UCuGameUIManagerSubsystem`). 엔진/CommonGame 재사용 타입과 구분하고, 특히 `UCuLocalPlayer`처럼 CommonGame 실제 클래스명(`UCommonLocalPlayer`)과의 충돌·혼동을 방지한다. primary game module 클래스만 예외(모듈명 규칙).
-- **소스 폴더 구조 (역할별)**: module 루트에 평면 배치하지 말고 `Public`/`Private` + 역할별 하위폴더(`System/`·`Layout/`·`Widgets/`·`Screens/`·`ViewModels/`)로 나눈다. 헤더는 `Public/`, 구현은 `Private/`. ⚠️ 모던 UBT는 `Public/` 루트만 include 경로에 넣으므로 하위폴더 헤더는 **`Public/` 기준 경로 한정**으로 include한다(`#include "System/CuGameUIPolicy.h"`). (전체 트리·매핑·include 규칙은 레퍼런스 §2.)
+- **소스 폴더 구조 (역할별)**: module 루트에 평면 배치하지 말고 **역할별 하위폴더**(`System/`·`Layout/`·`Widgets/`·`Screens/`·`ViewModels/`)로 나눈다. ⚠️ **`Public`/`Private`는 쓰지 않고** .h/.cpp를 같은 역할 폴더에 함께 둔다. ⚠️ 이 경우 **Build.cs에 `PublicIncludePaths.Add(ModuleDirectory);`를 반드시 추가**해야 하위폴더 헤더의 **루트 기준 경로 한정 include**(`#include "System/CuGameUIPolicy.h"`)가 해석된다(Public 폴더 없이는 UBT가 루트를 자동 등록하지 않음 → 누락 시 `C1083`). (전체 트리·규칙은 레퍼런스 §2·§3.)
 
 **레이어링 아키텍처 (3-class split — 반드시 유지)**
 

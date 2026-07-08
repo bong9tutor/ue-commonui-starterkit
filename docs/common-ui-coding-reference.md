@@ -43,24 +43,20 @@
 > 파일명은 UE 타입 프리픽스를 뺀 클래스명과 일치시킨다: `CuGameUIPolicy.h/.cpp`, `CuPrimaryGameLayout.h/.cpp`, `CuGameplayTags.h/.cpp` …
 > primary game module 클래스(`FCommonUIStarterKitModule`)와 module 이름은 모듈명 규칙을 따르므로 `Cu` 프리픽스를 붙이지 않는다.
 
-**소스 폴더 구조 — 역할별 하위폴더 (필수)**: 모든 소스를 module 루트에 **평면(flat) 배치하지 말고** `Public`/`Private` + **역할별 하위폴더**로 나눈다. 헤더는 `Public/`, 구현은 `Private/`, 하위폴더는 같은 이름으로 미러링한다.
+**소스 폴더 구조 — 역할별 하위폴더 (필수)**: 모든 소스를 module 루트에 **평면(flat) 배치하지 말고** **역할별 하위폴더**로 나눈다. ⚠️ **`Public`/`Private`는 쓰지 않는다** — 이 kit은 헤더·구현(.h/.cpp)을 같은 역할 폴더에 함께 두는 방식을 택한다(작은 학습용 module에서 탐색이 단순).
 
 ```
 Source/CommonUIStarterKit/
 ├── CommonUIStarterKit.Build.cs
-├── Public/
-│   ├── CommonUIStarterKit.h            # primary game module 헤더
-│   ├── System/      # UCuGameUIManagerSubsystem, UCuGameUIPolicy, UCuLocalPlayer
-│   ├── Layout/      # UCuPrimaryGameLayout, CuGameplayTags
-│   ├── Widgets/     # UCuActivatableWidget, UCuButtonBase
-│   ├── Screens/     # UCuTitleScreen/MainMenu/SettingsScreen/PauseMenu/ConfirmationModal Widget
-│   └── ViewModels/  # UCuSettingsViewModel
-└── Private/         # Public을 미러링 (header-only 화면 베이스는 대응 .cpp 없음)
-    ├── CommonUIStarterKit.cpp
-    ├── System/  ├── Layout/  ├── Widgets/  └── ViewModels/
+├── CommonUIStarterKit.h / .cpp   # primary game module (루트에 유지)
+├── System/      # CuGameUIManagerSubsystem, CuGameUIPolicy, CuLocalPlayer (.h + .cpp)
+├── Layout/      # CuPrimaryGameLayout, CuGameplayTags
+├── Widgets/     # CuActivatableWidget, CuButtonBase
+├── Screens/     # Cu*Widget (header-only, 대응 .cpp 없음)
+└── ViewModels/  # CuSettingsViewModel
 ```
 
-> ⚠️ **include 경로**: 모던 UBT(strict IWYU, `BuildSettingsVersion.Latest`)는 `Public/` **루트만** include 경로에 추가한다(하위폴더는 자동 추가 안 됨). 따라서 하위폴더 헤더는 **`Public/` 기준 경로 한정**으로 include한다: `#include "System/CuGameUIPolicy.h"`, `#include "Widgets/CuActivatableWidget.h"`, `#include "Layout/CuPrimaryGameLayout.h"`. (엔진 CommonUI도 `#include "Widgets/CommonActivatableWidgetContainer.h"`처럼 쓴다.) 단 module 루트의 `CommonUIStarterKit.h`와 각 `.generated.h`는 파일명 그대로 include한다. *(파일명만으로 include하고 싶다면 Build.cs에 `bLegacyPublicIncludePaths = true`를 켜야 하지만 Epic 권장 안 함 — 경로 한정이 정석.)*
+> ⚠️ **include 경로 (중요)**: `Public`/`Private`가 없으면 UBT는 module 루트를 include 경로에 **자동으로 넣지 않는다**(Public 폴더가 있을 때만 그 루트를 추가). 따라서 **Build.cs에 `PublicIncludePaths.Add(ModuleDirectory);`를 넣어 module 루트를 등록**해야 한다(§3 참조). 그래야 하위폴더 헤더를 **module 루트 기준 경로 한정**으로 include할 수 있다: `#include "System/CuGameUIPolicy.h"`, `#include "Widgets/CuActivatableWidget.h"`, `#include "Layout/CuPrimaryGameLayout.h"`. (module 루트의 `CommonUIStarterKit.h`와 각 `.generated.h`는 파일명 그대로.) 같은 폴더의 .cpp가 자기 헤더를 include할 때도 이 경로 한정 형태를 그대로 쓴다. *(이 등록을 빠뜨리면 `fatal error C1083: 'System/....h': No such file` 로 빌드가 실패한다.)*
 
 **에셋 접두사** (Epic 권장 + 커뮤니티 표준):
 
@@ -94,7 +90,8 @@ Source/CommonUIStarterKit/
 - `.uproject` 활성화 plugin: `CommonUI`, `ModelViewViewModel`, `Monolith`.
 - **Build.cs 의존 module**(kit 실제 사용분): `Core`, `CoreUObject`, `Engine`, `InputCore`, `CommonUI`, `CommonInput`, `EnhancedInput`, `UMG`, `Slate`, `SlateCore`, `ModelViewViewModel`, `GameplayTags`.
   > 이 kit은 Lyra `CommonGame`을 **복사하지 않고 패턴만 재구현**하므로 `CommonGame`/`CommonUser`/`GameFeatures`/`ModularGameplay` dep은 넣지 않는다.
-- ⚠️ **헤더를 include하면 대응 module을 Build.cs에 반드시 추가**한다. 누락 시 unresolved external / missing include 빌드 에러(런타임 아님). 예: `UMVVMViewModelBase.h` → `ModelViewViewModel`.
+- ⚠️ **헤더를 include하면 대응 module을 Build.cs에 반드시 추가**한다. 누락 시 unresolved external / missing include 빌드 에러(런타임 아님). 예: `UMVVMViewModelBase.h` → `ModelViewViewModel`. MVVM FieldNotify(`Setter`/`Getter`/`FieldNotify` UPROPERTY)를 쓰면 `FieldNotification` module도 필요.
+- ⚠️ **역할별 하위폴더(§2)를 쓰고 Public/Private가 없으면 `PublicIncludePaths.Add(ModuleDirectory);`를 반드시 넣는다.** 그래야 `#include "System/CuGameUIPolicy.h"` 같은 루트 기준 경로 한정 include가 해석된다(누락 시 `C1083: No such file`). Public 폴더가 있을 때만 UBT가 그 루트를 자동 등록하기 때문이다.
 
 ---
 

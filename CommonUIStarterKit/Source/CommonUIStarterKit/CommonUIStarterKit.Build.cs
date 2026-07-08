@@ -18,6 +18,12 @@ public class CommonUIStarterKit : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
+		// 이 module은 Public/Private 폴더를 쓰지 않고 역할별 하위폴더(System/Layout/Widgets/…)로 구성한다.
+		// UBT는 module 루트를 include 경로에 '자동으로' 넣지 않으므로(Public 폴더가 있을 때만 그 루트를 추가),
+		// 여기서 module 루트를 명시적으로 등록한다. → #include "System/CuGameUIPolicy.h" 처럼
+		// 루트 기준 경로 한정으로 하위폴더 간 include가 해석된다.
+		PublicIncludePaths.Add(ModuleDirectory);
+
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
 			// --- 엔진 코어 ---

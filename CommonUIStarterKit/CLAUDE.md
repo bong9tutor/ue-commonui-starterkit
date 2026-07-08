@@ -46,10 +46,10 @@ CommonUIStarterKit/
 ├─ Source/
 │  ├─ CommonUIStarterKit.Target.cs       # Game 타깃
 │  ├─ CommonUIStarterKitEditor.Target.cs # Editor 타깃(게이트 빌드/에디터 실행용)
-│  └─ CommonUIStarterKit/                 # (세션 B에서 Public/Private + 역할별 하위폴더로 구성)
-│     ├─ CommonUIStarterKit.Build.cs      # dep: Core..CommonUI/CommonInput/EnhancedInput/UMG/Slate/MVVM/GameplayTags/FieldNotification
-│     ├─ Public/  (CommonUIStarterKit.h + System//Layout//Widgets//Screens//ViewModels/)
-│     └─ Private/ (CommonUIStarterKit.cpp + System//Layout//Widgets//ViewModels/)
+│  └─ CommonUIStarterKit/                 # (세션 B에서 역할별 하위폴더로 구성; Public/Private 미사용)
+│     ├─ CommonUIStarterKit.Build.cs      # dep 목록 + PublicIncludePaths.Add(ModuleDirectory)
+│     ├─ CommonUIStarterKit.h / .cpp      # primary game module (루트)
+│     └─ System/ · Layout/ · Widgets/ · Screens/ · ViewModels/   # 역할별 .h+.cpp 동거
 ├─ Config/
 │  ├─ DefaultEngine.ini                   # 골격 + [세션 B에서 채움] 치명적 CommonUI 설정 TODO 마커
 │  ├─ DefaultGame.ini                     # 골격 + DefaultUIPolicyClass TODO 마커
@@ -69,14 +69,14 @@ CommonUIStarterKit/
 **C++ 3-class 뼈대 빌드 성공 + 에디터 실행 + Monolith MCP 서버(port 9316) 준비 완료.**
 
 - **C++ 빌드**: `CommonUIStarterKitEditor Win64 Development` → **Result: Succeeded**, **우리 코드 에러·경고 0**(경고는 전부 Monolith 자체 소스 deprecation). UHT 리플렉션 생성 통과.
-- **네이밍·구조 규약 (레퍼런스 §2)**: 프로젝트 C++ 클래스는 **`Cu` 프리픽스**(`UCu*`/`FCu*`/`ECu*`), 소스는 **`Public`/`Private` + 역할별 하위폴더**(System/Layout/Widgets/Screens/ViewModels). ⚠️ 하위폴더 헤더 include는 **`Public/` 기준 경로 한정**(`#include "System/CuGameUIPolicy.h"`) — 모던 UBT는 `Public/` 루트만 include 경로에 넣는다.
-- **생성한 C++ 클래스** (`Source/CommonUIStarterKit/Public|Private/<role>/`):
+- **네이밍·구조 규약 (레퍼런스 §2·§3)**: 프로젝트 C++ 클래스는 **`Cu` 프리픽스**(`UCu*`/`FCu*`/`ECu*`), 소스는 **역할별 하위폴더**(System/Layout/Widgets/Screens/ViewModels)로 나누되 **`Public`/`Private`는 쓰지 않고** .h/.cpp를 같은 폴더에 둔다. ⚠️ 그래서 **Build.cs에 `PublicIncludePaths.Add(ModuleDirectory)`**를 넣어야 하위폴더 헤더의 **루트 기준 경로 한정 include**(`#include "System/CuGameUIPolicy.h"`)가 해석된다(누락 시 `C1083`).
+- **생성한 C++ 클래스** (`Source/CommonUIStarterKit/<role>/`):
   - `Layout/`: `CuGameplayTags.h/.cpp`(`UI.Layer.Game/GameMenu/Menu/Modal` 네이티브 태그) · `CuPrimaryGameLayout.h/.cpp`(4-layer BindWidgetOptional + `RegisterLayer` + `PushWidgetToLayerStack`/`Async` + static `GetPrimaryGameLayout`, `ECuAsyncWidgetLayerState`).
   - `System/`: `CuLocalPlayer.h`(header-only) · `CuGameUIManagerSubsystem.h/.cpp` · `CuGameUIPolicy.h/.cpp`(Within=CuGameUIManagerSubsystem, per-player `FCuRootViewportLayoutInfo`).
   - `Widgets/`: `CuActivatableWidget.h/.cpp`(`GetDesiredInputConfig()`→`FUIInputConfig(InputMode, NoCapture)`) · `CuButtonBase.h/.cpp`(`Text_Label` BindWidgetOptional).
   - `Screens/`: `CuTitleScreenWidget`/`CuMainMenuWidget`/`CuSettingsScreenWidget`/`CuPauseMenuWidget`/`CuConfirmationModalWidget`(header-only, 세션 C에서 BindWidget·로직 확장).
   - `ViewModels/`: `CuSettingsViewModel.h/.cpp`(`UMVVMViewModelBase`, FieldNotify `MasterVolume` + `UE_MVVM_SET_PROPERTY_VALUE`).
-  - module 파일은 `Public/CommonUIStarterKit.h` + `Private/CommonUIStarterKit.cpp`. Build.cs에 `FieldNotification` 추가(MVVM FieldNotify 생성 코드용).
+  - module 파일은 루트에 `CommonUIStarterKit.h` + `.cpp`. Build.cs에 `FieldNotification`(MVVM FieldNotify 생성 코드) + `PublicIncludePaths.Add(ModuleDirectory)` 추가.
 - **레이아웃 생성 트리거**(재구현 선택): subsystem이 `FGameModeEvents::OnGameModePostLoginEvent`(PC 로그인=PC 확보 보장) + `UGameInstance::OnLocalPlayerRemovedEvent`에 바인딩 → policy에 위임. policy는 `UCuLocalPlayer::OnPlayerControllerSet`에도 구독(PC 교체/지연 대응). ⚠️ **세션 C Stage 2에서 PIE로 실제 타이밍을 검증**하고, 필요 시 트리거를 조정한다.
 - **INI 실제 값**: `DefaultEngine.ini`에 **`GameViewportClientClassName=/Script/CommonUI.CommonGameViewportClient`**[치명적] + **`LocalPlayerClassName=/Script/CommonUIStarterKit.CuLocalPlayer`** 설정 완료. `DefaultGame.ini`의 `DefaultUIPolicyClass`(`[/Script/CommonUIStarterKit.CuGameUIManagerSubsystem]`)와 `CommonInputSettings.InputData`는 **세션 C에서 에셋 생성 후 값 확정**(지금은 주석 — 존재하지 않는 경로 로드 경고 방지). INI 배치는 레퍼런스 §4 기준(DefaultEngine.ini).
 - **`.mcp.json`**: 저장소 루트에 생성. `command="CommonUIStarterKit/Plugins/Monolith/Binaries/monolith_proxy.exe"`, `args=[]`. (프록시는 args 없이 시작해 `http://localhost:9316/mcp`로 포워딩함을 확인.)
