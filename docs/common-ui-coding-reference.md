@@ -63,7 +63,7 @@ Source/CommonUIStarterKit/
 | 유형 | 접두사 | 예 |
 |------|--------|-----|
 | Widget Blueprint | `WBP_` | `WBP_MainMenu`, `WBP_PrimaryGameLayout` |
-| Blueprint class(GameMode/PC 등) | `BP_` | `BP_StarterGameMode` |
+| Blueprint class(GameMode/PC 등) | `BP_` | `BP_StarterGameMode`, `BP_StarterPlayerController` |
 | CommonButtonStyle | `CBS_` | `CBS_Default`, `CBS_Primary` |
 | CommonTextStyle | `CTS_` | `CTS_Header`, `CTS_Body`, `CTS_Button` |
 | CommonBorderStyle | `CBRS_` | `CBRS_Panel` |
@@ -71,13 +71,13 @@ Source/CommonUIStarterKit/
 | InputMappingContext | `IMC_` | `IMC_UI` |
 | DataTable | `DT_` | `DT_UIActions` |
 | Data Asset(UCommonUIInputData 등) | `DA_` | `DA_CommonInputData` |
-| Level/Map | `L_` | `L_StarterMap` |
+| Level/Map | `L_` | `L_StarterKit` |
 
 > `CBS_`/`CTS_`/`CBRS_`는 이 kit이 채택한 프로젝트 관례다(Common UI style 에셋에 대한 공식 표준 접두사는 없음). 일관되게만 쓰면 된다.
 
 **GameplayTag**: `UI.Layer.Game` / `UI.Layer.GameMenu` / `UI.Layer.Menu` / `UI.Layer.Modal`. 네이티브 선언은 `UE_DECLARE_GAMEPLAY_TAG_EXTERN`(헤더) + `UE_DEFINE_GAMEPLAY_TAG`(cpp).
 
-**Content 경로**: `/Game/UI/Foundation`, `/Game/UI/Menu`, `/Game/UI/HUD`, `/Game/UI/Style`, `/Game/Input`.
+**Content 경로**: `/Game/UI/Foundation`, `/Game/UI/Menu`, `/Game/UI/HUD`, `/Game/UI/Style`, `/Game/Input`, `/Game/Maps`(레벨), `/Game/Core`(GameMode/PC BP).
 
 > ⚠️ **BindWidget 이름 일치**(핵심): `UPROPERTY(meta=(BindWidget))` C++ 멤버 이름 == WBP 자식 위젯 이름을 **엄격히** 일치시킨다. 상세는 §6.
 
@@ -105,7 +105,11 @@ Source/CommonUIStarterKit/
 | `[/Script/CommonInput.CommonInputSettings]` (`InputData` 등) | `DefaultEngine.ini` |
 | `UGameUIManagerSubsystem`의 `DefaultUIPolicyClass`(config) | `DefaultGame.ini` |
 | Local Player Class | `DefaultEngine.ini` |
+| `[/Script/EngineSettings.GameMapsSettings]` (`EditorStartupMap`/`GameDefaultMap`) | `DefaultEngine.ini` |
+| `GlobalDefaultGameMode` (레벨 World Settings override의 INI fallback) | `DefaultEngine.ini` |
 | legacy Action/Axis, Enhanced Input 기본값 | `DefaultInput.ini` |
+
+> ⚠️ 레벨별 GameMode 지정(**World Settings `GameModeOverride`**)은 INI가 아니라 **`.umap`에 저장**된다(레벨 자립). `GlobalDefaultGameMode`는 override가 없는 맵의 프로젝트 전역 기본값(= 위 override의 INI fallback). 기본/시작 맵은 `[/Script/EngineSettings.GameMapsSettings]`의 `EditorStartupMap`(에디터가 프로젝트 열 때)·`GameDefaultMap`(패키징/스탠드얼론)로 지정.
 
 **[치명적, 절대 누락 금지]** — 없으면 `UCommonUIActionRouter`가 입력을 못 받아 gamepad 내비게이션·focus·Back이 **무음으로 전부 죽는다**(마우스만 동작해 버그가 숨음). CommonUI 최다 셋업 실패 원인.
 

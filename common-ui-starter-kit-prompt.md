@@ -221,6 +221,10 @@ UCuGameUIManagerSubsystem  (player lifecycle)
 
   [/Script/Engine.GameEngine]  ; (또는 프로젝트 상황에 맞는 위치)
   ; Local Player Class = UCuLocalPlayer
+
+  [/Script/EngineSettings.GameMapsSettings]
+  ; 빈 섹션만 생성. EditorStartupMap/GameDefaultMap은 세션 C Stage 0에서
+  ; L_StarterKit 생성 후 채운다(존재하지 않는 맵을 미리 가리키면 로드 경고).
   ```
 - **`DefaultGame.ini`**
   - `UCuGameUIManagerSubsystem`의 `DefaultUIPolicyClass`(config) 지정
@@ -272,7 +276,7 @@ UCuGameUIManagerSubsystem  (player lifecycle)
 
 ### Content 폴더 구조
 
-`UI/Foundation`, `UI/Menu`, `UI/HUD`, `UI/Style`, `Input` (에셋 경로는 `/Game/UI/...` 정규 경로).
+`UI/Foundation`, `UI/Menu`, `UI/HUD`, `UI/Style`, `Input`, **`Maps`(레벨), `Core`(GameMode/PC BP)**. (UI 에셋은 `/Game/UI/...`, 레벨·프레임워크 BP는 `/Game/Maps`·`/Game/Core` 정규 경로.)
 
 ---
 
@@ -286,8 +290,34 @@ UCuGameUIManagerSubsystem  (player lifecycle)
 | (b) Blueprint **graph** 편집 (OnClicked→push 등) | data-asset 생성보다 난도 높음 | 그래프 노드 연결을 수동 체크리스트로 |
 | (c) style data-only BP의 **nested struct / sub-object** 값 설정 (FSlateBrush, font 등) | 중첩 구조·서브에셋 참조가 까다로움 | 스칼라/컬러만 자동, 브러시·폰트는 수동 |
 | (d) **MVVM View Binding** 저작 | 바인딩은 WBP의 `UMVVMWidgetBlueprintExtension_View`에 저장되며, 정식 경로는 View Bindings 에디터 패널. 프로그램적 경로는 Experimental `unreal.MVVMView` Python API뿐 | **Stage 6의 View Binding은 수동/Experimental fallback으로 사전 선언** |
+| (e) **Empty 레벨 생성** + 레벨 **World Settings**(`GameModeOverride`) 편집 | 맵 저작·World Settings는 위젯/데이터에셋과 별개 API (Stage 0에서 사용) | New Level→저장·World Settings에서 GameMode Override를 수동 지정 + INI `GlobalDefaultGameMode` fallback |
 
 **검증**: 에디터 up + MCP 연결 확인 + capability matrix를 `CLAUDE.md`에 기록.
+
+---
+
+### Stage 0 — 프레임워크 부트스트랩 (레벨 + GameMode/PC + 기본 맵) ⭐ Stage 1 이전 필수
+
+이후 모든 Stage의 PIE 검증은 "플레이 가능한 레벨 + 플레이어 로그인"을 전제로 한다(Stage 2의 "BeginPlay 시 레이아웃 생성"은 GameMode가 PostLogin을 일으켜야 동작 — `UCuGameUIManagerSubsystem`이 `FGameModeEvents::OnGameModePostLoginEvent`에 바인딩). 그래서 레벨·GameMode·PlayerController·기본 맵을 **가장 먼저** 만든다.
+
+- **Empty 레벨**: `/Game/Maps/L_StarterKit` — Empty Level 템플릿(바닥/조명 없음, UI-only). 사전 Probe (e)로 Monolith 역량 확인, 자동 불가 시 수동(File > New Level > Empty Level → `/Game/Maps/L_StarterKit`로 저장).
+- **GameMode BP**: `BP_StarterGameMode`(`AGameModeBase` 파생, `/Game/Core`).
+  - `PlayerControllerClass = BP_StarterPlayerController`
+  - `DefaultPawnClass = None` ⚠️ Empty 레벨엔 PlayerStart가 없음 → None으로 두어 "PlayerStart 없음/폰 스폰 실패" 경고를 피한다(UI 셸은 폰 불필요).
+  - `HUDClass`는 기본값 유지.
+- **PlayerController BP**: `BP_StarterPlayerController`(`APlayerController` 파생, `/Game/Core`). 메뉴 상호작용을 위해 `bShowMouseCursor = true`(선택). ⚠️ `SetInputMode*` 직접 호출 금지 — 입력 모드는 CommonUI(`GetDesiredInputConfig`)가 담당(레퍼런스 §5).
+- **레벨에 GameMode 연결**: `L_StarterKit`의 **World Settings → GameMode Override = BP_StarterGameMode**. Monolith로 World Settings 편집이 불가하면 수동 체크리스트 + INI fallback(아래 `GlobalDefaultGameMode`).
+- **기본/시작 맵 지정** (`DefaultEngine.ini`, 직접 Edit — Monolith 아님): 세션 B에서 만들어 둔 빈 `[/Script/EngineSettings.GameMapsSettings]` 섹션을 채운다.
+  ```ini
+  [/Script/EngineSettings.GameMapsSettings]
+  EditorStartupMap=/Game/Maps/L_StarterKit.L_StarterKit
+  GameDefaultMap=/Game/Maps/L_StarterKit.L_StarterKit
+  ; GameMode는 L_StarterKit의 World Settings(GameModeOverride)로 지정.
+  ; (World Settings 자동화 불가 시 fallback)
+  ; GlobalDefaultGameMode=/Game/Maps/BP_StarterGameMode.BP_StarterGameMode_C
+  ```
+  ⚠️ `EditorStartupMap`이 있어야 **프로젝트를 열 때 L_StarterKit이 자동으로 열린다**(요구사항). `GameDefaultMap`은 패키징/스탠드얼론 시작 맵.
+- **PIE 검증**: `L_StarterKit`을 열고 PIE → 크래시 없이 플레이어 로그인, GameMode=`BP_StarterGameMode`·PlayerController=`BP_StarterPlayerController`·LocalPlayer=`UCuLocalPlayer`. 로그에서 GameMode PostLogin 확인. (UI는 아직 없음 — 정책/레이아웃·`DefaultUIPolicyClass` 활성화는 Stage 2.) 에디터를 껐다 켜면 L_StarterKit이 기본으로 열리는지도 확인.
 
 ---
 
@@ -341,18 +371,21 @@ Common UI가 아닌 **독립 시스템**(MVVM)을 완성된 shell 위에 얹는 
 
 ---
 
-### 레벨/프레임워크 연결
+### 프레임워크 배선 최종 점검
 
-- 테스트 맵 생성, GameMode/PlayerController Blueprint 생성.
-- 프로젝트 세팅(Default GameMode, Default Map, **Local Player Class = `UCuLocalPlayer`**) 갱신.
-- `UCuGameUIManagerSubsystem`(→ Policy)이 `WBP_PrimaryGameLayout`을 생성하고 타이틀 화면을 push하도록 연결.
+레벨·GameMode·PC·기본 맵은 **Stage 0**에서, 정책→레이아웃 push는 **Stage 2**에서 만든다(여기서 재생성하지 말 것). 이 단계에서는 그 배선이 **기본 맵 시작부터** 끊김 없이 이어지는지만 확인:
+
+- `DefaultUIPolicyClass`(DefaultGame.ini) = `BP_StarterUIPolicy`, 정책의 `LayoutClass` = `WBP_PrimaryGameLayout` 연결 확인.
+- `UCuGameUIManagerSubsystem`(→ Policy)이 `WBP_PrimaryGameLayout`을 생성하고 타이틀 화면을 push하는지.
+- Local Player Class = `UCuLocalPlayer`(DefaultEngine.ini, 세션 B에서 설정), World Settings GameMode Override = `BP_StarterGameMode`(Stage 0) 유효 확인.
 
 ### 최종 검증 및 마무리
 
 1. 모든 Blueprint의 컴파일 상태를 MCP로 확인하고 오류 수정.
 2. `editor` 네임스페이스의 PIE 스모크 테스트(또는 live-PIE driving)로 **타이틀 → 메인 메뉴 → 설정 → 일시정지 → 모달** 흐름이 크래시 없이 동작하는지 확인. (각 Stage에서 이미 검증했으므로 여기서는 통합 회귀.)
-3. 로그 캡처로 Common UI 관련 경고/에러 확인(특히 `CommonGameViewportClient` 미설정 시 입력 무음 실패 여부).
-4. `README.md` 작성: 프로젝트 개요, **3-세션 워크플로(A 프로젝트+플러그인 / B C++ 뼈대 / C 에셋)와 Stage 1~6 학습 순서**, 생성된 에셋 목록, **Lyra CommonGame 대응 관계 표**, "다음 단계"(Stage 7).
+3. **프로젝트 재시작 시 `L_StarterKit`이 자동으로 열리고**(요구사항), 그 기본 맵에서 시작해 위 전체 흐름이 크래시 없이 동작하는지 회귀 확인.
+4. 로그 캡처로 Common UI 관련 경고/에러 확인(특히 `CommonGameViewportClient` 미설정 시 입력 무음 실패 여부).
+5. `README.md` 작성: 프로젝트 개요, **3-세션 워크플로(A 프로젝트+플러그인 / B C++ 뼈대 / C 에셋)와 Stage 1~6 학습 순서**, 생성된 에셋 목록, **Lyra CommonGame 대응 관계 표**, "다음 단계"(Stage 7).
 
 ### Lyra CommonGame 대응표 (README에 포함)
 
