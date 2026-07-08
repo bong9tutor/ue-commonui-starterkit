@@ -1,6 +1,7 @@
 // CuPrimaryGameLayout.cpp
 #include "Layout/CuPrimaryGameLayout.h"
 
+#include "CommonActivatableWidget.h"
 #include "Layout/CuGameplayTags.h"
 #include "System/CuLocalPlayer.h"
 #include "System/CuGameUIManagerSubsystem.h"
@@ -36,6 +37,11 @@ UCuPrimaryGameLayout* UCuPrimaryGameLayout::GetPrimaryGameLayout(ULocalPlayer* L
 		}
 	}
 	return nullptr;
+}
+
+UCuPrimaryGameLayout* UCuPrimaryGameLayout::GetPrimaryGameLayoutForPlayer(APlayerController* PlayerController)
+{
+	return GetPrimaryGameLayout(PlayerController);
 }
 
 void UCuPrimaryGameLayout::NativeOnInitialized()
@@ -94,3 +100,25 @@ void UCuPrimaryGameLayout::FindAndRemoveWidgetFromLayer(UCommonActivatableWidget
 		}
 	}
 }
+
+// --- [세션 C Stage 2+] BP 저작용 래퍼 구현 ---
+
+UCommonActivatableWidget* UCuPrimaryGameLayout::PushWidgetToLayer(FGameplayTag LayerTag, TSubclassOf<UCommonActivatableWidget> WidgetClass)
+{
+	if (!WidgetClass)
+	{
+		return nullptr;
+	}
+	// template push의 BP 래퍼(base 타입으로 push). GetLayerWidget이 null이면 template이 nullptr 반환.
+	return PushWidgetToLayerStack<UCommonActivatableWidget>(LayerTag, WidgetClass);
+}
+
+void UCuPrimaryGameLayout::RemoveWidgetFromLayer(UCommonActivatableWidget* ActivatableWidget)
+{
+	FindAndRemoveWidgetFromLayer(ActivatableWidget);
+}
+
+FGameplayTag UCuPrimaryGameLayout::GetLayerTag_Game()     { return TAG_UI_Layer_Game; }
+FGameplayTag UCuPrimaryGameLayout::GetLayerTag_GameMenu() { return TAG_UI_Layer_GameMenu; }
+FGameplayTag UCuPrimaryGameLayout::GetLayerTag_Menu()     { return TAG_UI_Layer_Menu; }
+FGameplayTag UCuPrimaryGameLayout::GetLayerTag_Modal()    { return TAG_UI_Layer_Modal; }

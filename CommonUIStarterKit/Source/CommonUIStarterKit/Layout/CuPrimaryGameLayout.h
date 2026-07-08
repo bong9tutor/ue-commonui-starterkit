@@ -38,11 +38,34 @@ public:
 	static UCuPrimaryGameLayout* GetPrimaryGameLayout(APlayerController* PlayerController);
 	static UCuPrimaryGameLayout* GetPrimaryGameLayout(ULocalPlayer* LocalPlayer);
 
+	/** [BP] PlayerController로 루트 레이아웃을 얻는다(화면 위젯이 push 대상 레이아웃을 얻는 진입점). */
+	UFUNCTION(BlueprintCallable, Category = "Cu|UI Layout", meta = (DisplayName = "Get Primary Game Layout (Player)"))
+	static UCuPrimaryGameLayout* GetPrimaryGameLayoutForPlayer(APlayerController* PlayerController);
+
 	/** tag→container 맵에 스택을 명시적으로 등록. NativeOnInitialized에서 호출. */
 	void RegisterLayer(FGameplayTag LayerTag, UCommonActivatableWidgetContainerBase* LayerWidget);
 
 	/** 등록된 레이어(스택) 컨테이너를 tag로 조회. 없으면 nullptr. */
 	UCommonActivatableWidgetContainerBase* GetLayerWidget(FGameplayTag LayerTag) const;
+
+	// --- [세션 C Stage 2+] Blueprint 내비게이션용 BP-callable 래퍼 ---
+	// ⚠️ 엔진 push는 template(비-UFUNCTION)이라 BP에 노출되지 않고, 네이티브 GameplayTag도 BP에
+	//    직접 안 보인다. 그래서 BP 저작(버튼 OnClicked→push 등)용 함수를 여기서 노출한다.
+	//    Lyra의 UCommonUIExtensions::PushContentToLayer에 대응하는 학습용 재구현.
+
+	/** [BP] LayerTag 스택에 위젯 클래스를 push(자동 activate)하고 생성 인스턴스를 반환. */
+	UFUNCTION(BlueprintCallable, Category = "Cu|UI Layout", meta = (Categories = "UI.Layer", DeterminesOutputType = "WidgetClass"))
+	UCommonActivatableWidget* PushWidgetToLayer(FGameplayTag LayerTag, TSubclassOf<UCommonActivatableWidget> WidgetClass);
+
+	/** [BP] 어느 레이어에 있든 해당 위젯 인스턴스를 pop. */
+	UFUNCTION(BlueprintCallable, Category = "Cu|UI Layout")
+	void RemoveWidgetFromLayer(UCommonActivatableWidget* ActivatableWidget);
+
+	/** [BP] 4개 UI 레이어 태그 접근자(네이티브 태그를 BP 그래프에서 쓰기 위함). */
+	UFUNCTION(BlueprintPure, Category = "Cu|UI Layout") static FGameplayTag GetLayerTag_Game();
+	UFUNCTION(BlueprintPure, Category = "Cu|UI Layout") static FGameplayTag GetLayerTag_GameMenu();
+	UFUNCTION(BlueprintPure, Category = "Cu|UI Layout") static FGameplayTag GetLayerTag_Menu();
+	UFUNCTION(BlueprintPure, Category = "Cu|UI Layout") static FGameplayTag GetLayerTag_Modal();
 
 	/** [동기] hard class 위젯을 레이어 스택에 push (자동 activate). */
 	template <typename ActivatableWidgetT = UCommonActivatableWidget>
