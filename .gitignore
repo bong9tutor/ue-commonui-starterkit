@@ -58,6 +58,24 @@ Plugins/Monolith/
 Plugins/*/Binaries/
 Plugins/*/Intermediate/
 
+# ============================================================
+# Containment 구조: UE 프로젝트가 이 저장소의 CommonUIStarterKit/ 하위폴더에 있음.
+# 위 Binaries//Intermediate//Saved//DerivedDataCache/ 등 "끝 슬래시" 패턴은
+# gitignore 규칙상 모든 depth에서 매칭되지만, "중간 슬래시" 패턴
+# (Build/*, Plugins/Monolith/, Plugins/*/Binaries/ 등)은 저장소 루트에만
+# 앵커되므로 하위폴더용 패턴을 아래에 명시적으로 추가한다.
+# ============================================================
+CommonUIStarterKit/Build/*
+!CommonUIStarterKit/Build/*/
+CommonUIStarterKit/Build/*/**
+!CommonUIStarterKit/Build/**/*.ico
+!CommonUIStarterKit/Build/*/PakBlacklist*.txt
+# 제3자 편집 자동화 플러그인(재설치 대상, 학습 콘텐츠 아님) 통째 무시
+CommonUIStarterKit/Plugins/Monolith/
+# 자체 플러그인은 커밋하되 빌드 산출물만 무시
+CommonUIStarterKit/Plugins/*/Binaries/
+CommonUIStarterKit/Plugins/*/Intermediate/
+
 # --- Claude Code 로컬 설정(개인 오버라이드)은 무시, settings.json은 커밋 ---
 .claude/settings.local.json
 

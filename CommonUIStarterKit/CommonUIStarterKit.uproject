@@ -1,0 +1,27 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.8",
+	"Category": "",
+	"Description": "Common UI 학습용 Starter Kit — Lyra CommonGame 패턴 재구현 (UE 5.8)",
+	"Modules": [
+		{
+			"Name": "CommonUIStarterKit",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "CommonUI",
+			"Enabled": true
+		},
+		{
+			"Name": "ModelViewViewModel",
+			"Enabled": true
+		},
+		{
+			"Name": "Monolith",
+			"Enabled": true
+		}
+	]
+}
