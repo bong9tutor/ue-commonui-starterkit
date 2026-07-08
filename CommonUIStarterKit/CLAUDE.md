@@ -113,3 +113,86 @@ CommonUIStarterKit/
 - FieldNotify setter 직접 대입 금지 → `UE_MVVM_SET_PROPERTY_VALUE`.
 - `CommonInput`/`EnhancedInput`을 `.uproject` plugin으로 넣지 말 것 → Build.cs dep으로만.
 - push 후 `ActivateWidget` 재호출 금지 · `RegisterLayer`는 `NativeOnInitialized`에서 명시 · BindWidget 이름 엄격 일치.
+
+## 세션 C — 사전 Probe 결과 (2026-07-09)
+
+Monolith v0.20.3 연결 확인(port 9316, 에디터 PID 35224, engine CL 55116800). `monolith_discover()` 기준 역량 매트릭스:
+
+| 역량 | 자동화 액션 | 판정 |
+|------|-------------|------|
+| (a) BindWidget child 이름 WBP 트리 | `ui.create_widget_blueprint`/`add_widget`/`rename_widget`/`set_widget_is_variable` | ✅ 자동 (이름 일치 Stage 2/3 검증) |
+| (b) Blueprint graph 편집 | `blueprint.add_node`/`connect_pins`/`add_nodes_bulk` + `ui.push_to_activatable_stack` | ✅ 자동 |
+| (c) style nested struct/sub-object | `ui.create_common_button_style`/`create_common_text_style`/`set_brush`/`set_font` + `blueprint.set_cdo_properties`/`set_property_at_path` | ✅ 자동 |
+| (d) **MVVM View Binding** | 전용 액션 불확실(`ui.bind_widget_to_attribute`는 GAS attribute용) | ⚠️ **Stage 6에서 재확인, 실패 시 수동 fallback** |
+| (e) Empty 레벨 + World Settings GameMode override | `editor.create_empty_map` + `editor.author_map_settings(game_mode_override)` | ✅ 자동 (수동 fallback 불필요) |
+
+PIE 검증: `editor.run_pie_smoke`(async, `on_compile_errors:"refuse"` 가드) → `poll_pie_smoke`. 컴파일 오류 사전 확인은 `editor.list_errored_blueprints`.
+
+### Stage 0 완료 (2026-07-09) — 프레임워크 부트스트랩
+
+- **`/Game/Maps/L_StarterKit`**(Empty Level) + PlayerStart 1개.
+- **`/Game/Core/BP_StarterGameMode`**(AGameModeBase): `PlayerControllerClass=BP_StarterPlayerController_C`, `DefaultPawnClass=None`(빈 문자열로 클리어 — "None" 문자열은 hard-ref 실패).
+- **`/Game/Core/BP_StarterPlayerController`**(APlayerController): `bShowMouseCursor=true`.
+- **World Settings GameModeOverride** = `BP_StarterGameMode`(`editor.author_map_settings`, .umap 저장).
+- **`DefaultEngine.ini`** `[/Script/EngineSettings.GameMapsSettings]`: `EditorStartupMap`=`GameDefaultMap`=`/Game/Maps/L_StarterKit.L_StarterKit`. ⚠️ 에디터는 시작 시 config를 읽으므로 **다음 실행부터** L_StarterKit 자동 오픈(현 세션 에디터는 재시작 금지 — MCP 유지).
+- **PIE 검증 통과**: `run_pie_smoke` `ok:true`, 크래시/에러 0, 런타임 probe로 `GM=BP_StarterGameMode_C PC=BP_StarterPlayerController_C` 확인. LocalPlayer(`UCuLocalPlayer`) 검증은 Stage 2에서 policy 캐스팅으로 확인.
+- ⚠️ 소소한 quirk: `blueprint.set_cdo_properties`(bulk)가 한 필드 실패 시 atomic 롤백 → 클래스 클리어는 **단일 `set_cdo_property`에 빈 문자열**로.
+
+### Stage 1 완료 (2026-07-09)
+
+- **`/Game/UI/Foundation/WBP_StarterActivatable`**(UCuActivatableWidget 파생) + 중앙 TextBlock `Txt_Hello`("Stage 1 — Hello Common UI"). 컴파일 클린, PIE-safe, `audit_commonui_widget` 통과(경고 1건: DesiredFocusTargetName 없음 — 텍스트 전용이라 정상, 포커스 타깃은 Stage 3 버튼부터).
+
+### Stage 2 완료 (2026-07-09) — 레이아웃/정책 배선 검증
+
+- **`/Game/UI/Foundation/WBP_PrimaryGameLayout`**(UCuPrimaryGameLayout 파생) + `Layer_Menu` 스택(CommonActivatableWidgetStack, BindWidgetOptional 이름 일치, stretch_fill).
+- **`/Game/UI/Foundation/BP_StarterUIPolicy`**(UCuGameUIPolicy 파생) → `LayoutClass=WBP_PrimaryGameLayout_C`.
+- **`DefaultGame.ini`** `[/Script/CommonUIStarterKit.CuGameUIManagerSubsystem] DefaultUIPolicyClass=/Game/UI/Foundation/BP_StarterUIPolicy.BP_StarterUIPolicy_C` 활성화.
+- **PIE 검증 통과**(런타임): `DefaultUIPolicyClass`가 `UPROPERTY(config)`라 **에디터 시작 시에만 로드** → 현 세션에선 subsystem **CDO에 값을 live로 set(run_python, get_default_object)** 한 뒤 `start_pie`. 결과 `Layer_Menu` 컨테이너가 라이브 트리에 존재(=subsystem→policy→layout 자동 생성 + **`UCuLocalPlayer` 캐스팅 성공** 확인) → `push_to_activatable_stack`로 WBP_StarterActivatable push → `stack_depth=1, active=WBP_StarterActivatable_C`.
+- ⚠️ **핵심 quirk 발견**: `DefaultUIPolicyClass`(config)와 `EditorStartupMap`(GameMapsSettings)은 **에디터 재시작 후에만** INI에서 로드된다. 현 세션 검증은 CDO live-set 시밍으로 우회. 배포 kit은 재시작 시 정상 배선.
+- ⚠️ **C++ 제약 발견 (Stage 3~5 영향)**: `UCuPrimaryGameLayout::PushWidgetToLayerStack`은 **template(비-UFUNCTION)**, 네이티브 태그도 BP 미노출. `UCommonActivatableWidgetStack`도 **BP/스크립트 노출 add/push 메서드 없음**(python `dir` 확인). → **버튼 내비게이션(OnClicked→push)을 BP로 저작하려면 C++에 BlueprintCallable push 헬퍼 추가 필요**(Lyra의 `UCommonUIExtensions::PushContentToLayer`에 대응). Stage 3 진입 전 결정 필요.
+
+### C++ 헬퍼 추가 + 재빌드 완료 (2026-07-09) — Stage 3~5 내비게이션 언블록
+
+- **`UCuPrimaryGameLayout`에 BP 노출 추가**(`CuPrimaryGameLayout.h/.cpp`): `UFUNCTION(BlueprintCallable) PushWidgetToLayer(FGameplayTag, TSubclassOf<UCommonActivatableWidget>)`(template push 래퍼) + `RemoveWidgetFromLayer` + `BlueprintPure` 태그 접근자 `GetLayerTag_Game/GameMenu/Menu/Modal`. `.cpp`에 `#include "CommonActivatableWidget.h"` 추가(template 인스턴스화 시 complete type 필요).
+- **재빌드**: 에디터 종료 → `Build.bat CommonUIStarterKitEditor`(증분, ~10s, **Result: Succeeded**, 에러 0) → 재실행. Live Coding은 새 UFUNCTION(UHT 재생성) 불가라 **전체 재빌드+에디터 재시작**이 필요했음.
+- **재시작 부수 효과 = 요구사항 검증 2건**: (1) **요구사항 2 실증** — 에디터가 `L_StarterKit`을 자동 오픈(`get_editor_world().get_name()=='L_StarterKit'`). (2) `DefaultUIPolicyClass`가 이제 INI에서 정상 로드(CDO 시밍 불필요).
+- python 노출 확인: `push_widget_to_layer`/`remove_widget_from_layer`/`get_layer_tag_menu` 등 정상. → BP 그래프에서 push 저작 가능.
+- (2차 소규모 재빌드) 화면 위젯이 레이아웃을 얻도록 `static UFUNCTION GetPrimaryGameLayoutForPlayer(APlayerController*)` 추가 → Build 성공. 화면의 `GetOwningPlayer → GetPrimaryGameLayoutForPlayer → PushWidgetToLayer` 내비 패턴 성립.
+
+### Stage 3 진행 (2026-07-09) — style + 버튼 + 타이틀/메뉴 내비게이션
+
+- **Style 에셋**(`/Game/UI/Style`): `CBS_Default`/`CBS_Primary`(CommonButtonStyle, NormalBase/Hovered/Pressed RoundedBox tint — 포커스/hover 피드백), `CTS_Header`/`CTS_Body`/`CTS_Button`(CommonTextStyle, Roboto + Size/Color). ⚠️ 사전 Probe (c) 결론: **nested struct/브러시/폰트 자동화 성공**(`set_cdo_properties` 중첩 JSON, errors:0) — 수동 fallback 불필요.
+- **`WBP_ButtonBase`**(UCuButtonBase): Overlay + `Text_Label`(CommonTextBlock, CTS_Button), `Style=CBS_Default`, `ButtonText` 기본값. 컴파일 클린.
+- **`WBP_TitleScreen`**(UCuTitleScreenWidget): `Txt_Title`(CTS_Header) + `Btn_Start`("Press to Start"). 그래프: **`OnButtonBaseClicked`(=CommonButtonBase의 BP 바인딩 델리게이트) → GetOwningPlayer → GetPrimaryGameLayoutForPlayer → PushWidgetToLayer(Menu, WBP_MainMenu)**. 컴파일 클린(연결 5/5 OK).
+- **`WBP_MainMenu`**(UCuMainMenuWidget): `MenuBox`(VerticalBox) + `Btn_Start`/`Btn_Settings`/`Btn_Quit`(WBP_ButtonBase, per-instance ButtonText). ⚠️ **버튼 클릭 액션 미배선**(다음 작업).
+- **`WBP_PrimaryGameLayout` 그래프**: Event Construct → `PushWidgetToLayer(GetLayerTag_Menu, WBP_TitleScreen)` → **재시작만으로 플레이 시 타이틀 자동 표시**.
+- **PIE 검증**: `start_pie`(CDO 시밍 없이, INI에서 정책 로드) → `Layer_Menu` depth 1 `active=WBP_TitleScreen_C`(자동 push 확인) → 런타임 push로 `WBP_MainMenu_C` depth 2(렌더 확인). 크래시 0.
+- ⚠️ **미검증**: 실제 버튼 '클릭→push'의 런타임 실행(Monolith가 라이브 위젯을 내부 해석하지만 python `find_object`엔 안 잡혀 델리게이트 broadcast 테스트 불가). 그래프는 컴파일·배선으로 검증됨 → **입력 붙는 Stage 4/통합 PIE에서 실입력으로 확인**.
+- 델리게이트 이름 quirk: CommonButtonBase의 BP 클릭 델리게이트는 `OnButtonBaseClicked`(param Button). `OnClicked`/`BPOnClicked` 아님 → `ui.list_widget_events`로 확인.
+
+### Stage 3 마감 (2026-07-09)
+- MainMenu: Btn_Quit→QuitGame, Btn_Start→PauseMenu(Stage5), Btn_Settings→SettingsScreen(Stage6). `GetDesiredFocusTarget` override(MainMenu/TitleScreen→Btn_Start)로 gamepad 초기 포커스. ⚠️ 실입력 클릭은 standalone/뷰포트 포커스에서 확인(에디터 in-viewport PIE는 포커스 미획득).
+
+### Stage 4 완료 (2026-07-09) — CommonUI DataTable 입력 경로
+- `/Game/Input/DT_UIActions`(FCommonInputActionDataBase: Back=Esc/Gamepad_FaceButton_Right, Accept=Enter/FaceButton_Bottom) + `DA_CommonInputData`(**BP 서브클래스** — UCommonUIInputData가 abstract; DefaultClickAction=Accept, DefaultBackAction=Back).
+- `DefaultEngine.ini` `[/Script/CommonInput.CommonInputSettings] InputData=/Game/Input/DA_CommonInputData.DA_CommonInputData_C` 활성화(재시작 후 로드).
+- `WBP_ActionBarButton`(자체 CommonActionWidget=`InputActionWidget` glyph) + `UCommonBoundActionBar`를 레이아웃에 배치. ⚠️ Monolith 기본 `MonolithDefaultCommonButton_C`는 미존재 → 자체 버튼 클래스 필요.
+
+### Stage 5 완료 (2026-07-09) — 4-layer + 모달
+- 레이아웃 4-layer 확장(Layer_Game/GameMenu/Menu/Modal) + z-order(GameMenu 10 < Menu 20 < Modal 30 < ActionBar 100).
+- `WBP_PauseMenu`(Resume→pop, Quit→ConfirmationModal push), `WBP_ConfirmationModal`(Cancel→pop, Confirm→QuitGame), 둘 다 `bIsBackHandler` + `GetDesiredFocusTarget`.
+
+### Stage 6 완료 (2026-07-09) — MVVM 설정 (캡스톤)
+- `WBP_SettingsScreen`(Slider_Volume + Txt_Value + Btn_Back): Slider `OnValueChanged`→FormatText→SetText로 라벨 실시간 갱신. Back→pop, bIsBackHandler, 포커스 타깃.
+- ⚠️ 선언적 **MVVM View Binding은 수동 fallback**(probe (d) 확정): Monolith에 뷰모델 바인딩 저작 액션 없음. `UCuSettingsViewModel`(C++)은 준비됨 — View Bindings 에디터에서 수동 연결.
+- quirk: `add_widget`로 만든 non-button 위젯(Txt_Value 등)은 IsVariable=false → 그래프 참조 전 `ui.set_widget_is_variable` 필요. WBP_ButtonBase 인스턴스는 자동 변수.
+
+### 최종 검증 완료 (2026-07-09)
+- 에디터 재시작 → 전체 INI 로드(DefaultUIPolicyClass·EditorStartupMap·CommonInputSettings.InputData). `get_editor_world()=='L_StarterKit'`(요구사항 2 재실증).
+- 통합 PIE: 타이틀 자동 push(Menu depth 1) → 런타임 push로 MainMenu(Menu depth 2)·ConfirmationModal(Modal depth 1) 렌더 확인. **errored blueprint 0, error-level 로그 0, 크래시 0.**
+- `README.md` 작성 완료(프로젝트 개요·3세션·Stage 0~6·에셋 목록·Lyra 대응표·수동 fallback·Stage 7).
+
+### 델리게이트/그래프 quirk 메모 (세션 C에서 확인)
+- CommonButtonBase BP 클릭 델리게이트 = **`OnButtonBaseClicked`**(param Button). `OnClicked`/`BPOnClicked` 아님 → `ui.list_widget_events`로 확인.
+- 버튼 내비 패턴: `OnButtonBaseClicked`(ComponentBoundEvent) → GetOwningPlayer(pure) → GetPrimaryGameLayoutForPlayer → PushWidgetToLayer(GetLayerTag_X, WidgetClass). pop은 `DeactivateWidget`(self).
+- `find_object`/`find_first_object`로 라이브 PIE 위젯이 안 잡힘 → python 델리게이트 broadcast 테스트 불가(그래프는 컴파일·배선으로 검증).
