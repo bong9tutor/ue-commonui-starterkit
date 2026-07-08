@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "permissions": {
+    "deny": [
+      "Read(/Binaries/**)",
+      "Read(/Intermediate/**)",
+      "Read(/DerivedDataCache/**)",
+      "Read(/Saved/**)",
+      "Read(/Plugins/**/Binaries/**)",
+      "Read(/Plugins/**/Intermediate/**)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf ~/*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "PowerShell(Remove-Item -Recurse -Force /)",
+      "PowerShell(Remove-Item -Recurse -Force C:\\*)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "monolith"
+  ]
+}

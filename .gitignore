@@ -1,0 +1,69 @@
+# ============================================================
+# Unreal Engine 5 (C++) — CommonUIStarterKit .gitignore
+# 커밋 대상: *.uproject, Source/**, Config/*.ini, Content/**(*.uasset/*.umap),
+#            자체 Plugins/**, .mcp.json, .claude/settings.json
+# ============================================================
+
+# --- UE가 생성하는 빌드/캐시/저장 폴더 (커밋 금지) ---
+Binaries/
+Intermediate/
+DerivedDataCache/
+Saved/
+
+# 빌드 산출물(Build/*)은 무시하되, 커밋해야 하는 설정성 파일은 예외로 남긴다
+Build/*
+!Build/*/
+Build/*/**
+!Build/**/*.ico
+!Build/*/PakBlacklist*.txt
+
+# --- 컴파일 산출물 (폴더 이동/복사 대비 전역 패턴) ---
+*.o
+*.obj
+*.gch
+*.pch
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+*.exp
+*.exe
+*.pdb
+*.out
+*.app
+*.ipa
+
+# --- IDE / 프로젝트 파일 (UBT GenerateProjectFiles로 재생성) ---
+.vs/
+.vscode/
+.idea/
+*.sln
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+*.xcodeproj/
+*.xcworkspace/
+
+# --- 빌드된 맵 데이터 (원본 .umap만 커밋; _BuiltData는 재생성) ---
+*_BuiltData.uasset
+
+# --- 제3자 편집 자동화 플러그인: 프롬프트로 재설치, 학습 콘텐츠 아님 ---
+# monolith_proxy.exe 등 바이너리는 릴리스에서 재설치하므로 통째로 무시
+Plugins/Monolith/
+
+# 자체 작성 플러그인은 커밋하되, 그 빌드 산출물만 무시
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+# --- Claude Code 로컬 설정(개인 오버라이드)은 무시, settings.json은 커밋 ---
+.claude/settings.local.json
+
+# --- OS 부산물 ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 참고: 대용량 .uasset/.umap이 많아지면 Git LFS(.gitattributes)로 관리 권장.
