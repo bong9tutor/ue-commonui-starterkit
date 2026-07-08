@@ -40,6 +40,8 @@ public class CommonUIStarterKit : ModuleRules
 
 			// --- MVVM (Stage 6 설정 화면 캡스톤) ---
 			"ModelViewViewModel",
+			// FieldNotify UPROPERTY 생성 코드가 참조하는 module (UE::FieldNotification::*)
+			"FieldNotification",
 
 			// --- GameplayTag (UI.Layer.* 레이어 식별) ---
 			"GameplayTags"

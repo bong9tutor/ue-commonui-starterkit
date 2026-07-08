@@ -18,7 +18,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > **Containment 결정 (2026-07-08)**: 사용자 요청으로 대상 UE 프로젝트를 별도 저장소가 아니라 이 저장소의 `CommonUIStarterKit/` 하위폴더에 뒀다. 하나의 git 저장소가 스펙 문서 + UE 프로젝트를 함께 담는다.
 > - 프롬프트는 "프로젝트=저장소 루트"를 가정하므로, **루트 앵커 경로 패턴을 하위폴더용으로 적응**시켰다: `.claude/settings.json`의 deny `Read()`에 `/CommonUIStarterKit/...` 경로 추가, `.gitignore`에 중간 슬래시 패턴(`CommonUIStarterKit/Plugins/Monolith/` 등) 추가.
 > - 코딩 레퍼런스는 하위폴더에 복사하지 않고 **루트 `docs/`의 원본을 그대로 참조**한다.
-> - **세션 A 결과**: 플러그인 컴파일 게이트 빌드 **통과**(툴체인+CommonUI/CommonInput/MVVM/Monolith가 UE 5.8에서 링크). Monolith는 v0.20.3 UE5.8 빌드(BuildId 55116800 == 엔진 CL 일치). 다음은 **프롬프트 B**(C++ 뼈대). A→B는 재시작 불필요.
+> - **세션 A 결과**: 플러그인 컴파일 게이트 빌드 **통과**(툴체인+CommonUI/CommonInput/MVVM/Monolith가 UE 5.8에서 링크). Monolith는 v0.20.3 UE5.8 빌드(BuildId 55116800 == 엔진 CL 일치).
+> - **세션 B 결과**: C++ 3-class 뼈대(레이어링·base widgets·ViewModel 스텁)·GameplayTag·치명적 INI(`GameViewportClientClassName`+`LocalPlayerClassName`) 작성 → **빌드 성공**(우리 코드 에러 0). `.mcp.json`(루트, containment 경로) 생성, **에디터 실행 + Monolith MCP 서버 port 9316 확인**. 상세·다음 단계는 **`CommonUIStarterKit/CLAUDE.md`**.
+> - **다음은 프롬프트 C**(에셋 Stage 1~6). ⚠️ **B→C는 Claude Code 재시작 필수**(`.mcp.json`이 세션 시작 시에만 로드됨). 에디터는 계속 켜 둘 것.
 > - **머신 quirk**: UE 5.8이 `C:\UE\UE_5.8`(비표준)이고 HKLM에 5.8 미등록 → 엔진 도구는 항상 절대경로로 직접 호출. 상세는 `CommonUIStarterKit/CLAUDE.md`.
 
 ## 프롬프트 문서가 기술하는 대상 아키텍처 (big picture)
@@ -34,16 +36,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **충실한 3-class 레이어링 (반드시 유지):**
 
 ```
-UGameUIManagerSubsystem  (player lifecycle, config DefaultUIPolicyClass)
-    └─ UGameUIPolicy  (LayoutClass 소유, UCommonLocalPlayer마다 레이아웃 1개 생성)
-          └─ UPrimaryGameLayout  (GameplayTag별 UCommonActivatableWidgetStack 레이어 소유)
+UCuGameUIManagerSubsystem  (player lifecycle, config DefaultUIPolicyClass)
+    └─ UCuGameUIPolicy  (LayoutClass 소유, UCuLocalPlayer마다 레이아웃 1개 생성)
+          └─ UCuPrimaryGameLayout  (GameplayTag별 UCommonActivatableWidgetStack 레이어 소유)
 ```
 
 - 레이어 4개: `UI.Layer.Game` / `GameMenu` / `Menu` / `Modal`. `BindWidget` + `RegisterLayer(Tag, Stack)`로 tag→container 맵을 명시적으로 채운다.
 - push는 `PushWidgetToLayerStack`(sync) / `PushWidgetToLayerStackAsync`(soft class). push가 자동 activate하므로 이중 `ActivateWidget` 금지.
 - 입력 모드는 `GetDesiredInputConfig()` → `FUIInputConfig`(`ECommonInputMode::Menu`/`Game`/`All`; `GameAndMenu` 없음). `SetInputMode*` 직접 호출 금지.
 - 메뉴 입력은 CommonUI **DataTable action 경로**(`FCommonInputActionDataBase` + `UCommonUIInputData` + `CommonInputSettings`). Enhanced Input은 gameplay 액션 전용.
-- 설정 화면은 MVVM(`USettingsViewModel : UMVVMViewModelBase`, FieldNotify + `UE_MVVM_SET_PROPERTY_VALUE`). View Binding은 수동/Experimental fallback 대상.
+- 설정 화면은 MVVM(`UCuSettingsViewModel : UMVVMViewModelBase`, FieldNotify + `UE_MVVM_SET_PROPERTY_VALUE`). View Binding은 수동/Experimental fallback 대상.
+- **프로젝트 C++ 클래스는 `Cu` 프리픽스**(`UCu*`/`FCu*`/`ECu*`)를 쓰고, 소스는 `Public/Private` + 역할별 하위폴더(System/Layout/Widgets/Screens/ViewModels)로 구성한다(레퍼런스 §2).
 
 ## 치명적 셋업 (누락 주의)
 

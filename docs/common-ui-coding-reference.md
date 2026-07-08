@@ -60,7 +60,7 @@ Source/CommonUIStarterKit/
     ├── System/  ├── Layout/  ├── Widgets/  └── ViewModels/
 ```
 
-> UBT는 `Public/`과 그 **모든 하위폴더를 include 경로에 재귀적으로 추가**하므로, cross-include는 폴더 경로 없이 파일명만으로 한다: `#include "CuPrimaryGameLayout.h"` (경로 결합 불필요). `.generated.h`도 파일명 그대로 마지막 include.
+> ⚠️ **include 경로**: 모던 UBT(strict IWYU, `BuildSettingsVersion.Latest`)는 `Public/` **루트만** include 경로에 추가한다(하위폴더는 자동 추가 안 됨). 따라서 하위폴더 헤더는 **`Public/` 기준 경로 한정**으로 include한다: `#include "System/CuGameUIPolicy.h"`, `#include "Widgets/CuActivatableWidget.h"`, `#include "Layout/CuPrimaryGameLayout.h"`. (엔진 CommonUI도 `#include "Widgets/CommonActivatableWidgetContainer.h"`처럼 쓴다.) 단 module 루트의 `CommonUIStarterKit.h`와 각 `.generated.h`는 파일명 그대로 include한다. *(파일명만으로 include하고 싶다면 Build.cs에 `bLegacyPublicIncludePaths = true`를 켜야 하지만 Epic 권장 안 함 — 경로 한정이 정석.)*
 
 **에셋 접두사** (Epic 권장 + 커뮤니티 표준):
 
