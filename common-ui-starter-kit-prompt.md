@@ -168,35 +168,40 @@ Lyra의 CommonGame **패턴**을 학습용으로 단순화하되, **핵심 3-cla
 
 > 📖 아래 항목의 ⚠️ 요점은 [`docs/common-ui-coding-reference.md`](docs/common-ui-coding-reference.md)에 근거·예시와 함께 정리돼 있습니다(§5 input·§6 layer·§7 MVVM·§8 settings). 여기서는 "무엇을 구현할지"를, 상세 idiom·시그니처는 레퍼런스를 본다.
 
+**코딩 규약 (반드시 준수 — 레퍼런스 §2)**
+
+- **프로젝트 클래스 프리픽스 `Cu`**: 모든 프로젝트 고유 C++ 클래스는 UE 타입 프리픽스(`U`/`A`/`F`/`E`) 뒤에 **`Cu`**를 붙인다(예: `UCuGameUIManagerSubsystem`). 엔진/CommonGame 재사용 타입과 구분하고, 특히 `UCuLocalPlayer`처럼 CommonGame 실제 클래스명(`UCommonLocalPlayer`)과의 충돌·혼동을 방지한다. primary game module 클래스만 예외(모듈명 규칙).
+- **소스 폴더 구조 (역할별)**: module 루트에 평면 배치하지 말고 `Public`/`Private` + 역할별 하위폴더(`System/`·`Layout/`·`Widgets/`·`Screens/`·`ViewModels/`)로 나눈다. 헤더는 `Public/`, 구현은 `Private/`. UBT가 `Public/` 하위폴더를 재귀적으로 include 경로에 넣으므로 cross-include는 파일명만으로 한다. (전체 트리·매핑은 레퍼런스 §2.)
+
 **레이어링 아키텍처 (3-class split — 반드시 유지)**
 
 ```
-UGameUIManagerSubsystem  (player lifecycle)
-        └─ owns ─▶ UGameUIPolicy  (LayoutClass 소유, per-LocalPlayer 레이아웃 생성)
-                        └─ creates ─▶ UPrimaryGameLayout  (레이어 스택 소유)
+UCuGameUIManagerSubsystem  (player lifecycle)
+        └─ owns ─▶ UCuGameUIPolicy  (LayoutClass 소유, per-LocalPlayer 레이아웃 생성)
+                        └─ creates ─▶ UCuPrimaryGameLayout  (레이어 스택 소유)
 ```
 
-- `UGameUIManagerSubsystem : UGameInstanceSubsystem` — **레이아웃을 직접 생성하지 않습니다.** local player lifecycle(추가/제거)에 반응해 `UGameUIPolicy`에 위임만 합니다. `UPROPERTY(config) TSoftClassPtr<UGameUIPolicy> DefaultUIPolicyClass`를 `DefaultGame.ini`에서 읽습니다.
-- `UGameUIPolicy : UObject` — `LayoutClass`(= `UPrimaryGameLayout` 서브클래스)를 소유하고, `UCommonLocalPlayer`마다 레이아웃을 **하나씩** 생성해 그 플레이어 화면에 붙입니다(`AddToViewport`가 아니라 per-player `AddToPlayerScreen` 계열). per-player 목록을 추적해 split-screen에도 각기 독립 레이아웃이 되도록 합니다.
-- `UPrimaryGameLayout : UCommonUserWidget` — GameplayTag로 식별되는 `UCommonActivatableWidgetStack` 레이어들을 `BindWidget`으로 보유. 제공 API:
+- `UCuGameUIManagerSubsystem : UGameInstanceSubsystem` — **레이아웃을 직접 생성하지 않습니다.** local player lifecycle(추가/제거)에 반응해 `UCuGameUIPolicy`에 위임만 합니다. `UPROPERTY(config) TSoftClassPtr<UCuGameUIPolicy> DefaultUIPolicyClass`를 `DefaultGame.ini`에서 읽습니다.
+- `UCuGameUIPolicy : UObject` — `LayoutClass`(= `UCuPrimaryGameLayout` 서브클래스)를 소유하고, `UCuLocalPlayer`마다 레이아웃을 **하나씩** 생성해 그 플레이어 화면에 붙입니다(`AddToViewport`가 아니라 per-player `AddToPlayerScreen` 계열). per-player 목록을 추적해 split-screen에도 각기 독립 레이아웃이 되도록 합니다.
+- `UCuPrimaryGameLayout : UCommonUserWidget` — GameplayTag로 식별되는 `UCommonActivatableWidgetStack` 레이어들을 `BindWidget`으로 보유. 제공 API:
   - `RegisterLayer(FGameplayTag, UCommonActivatableWidgetContainerBase*)` — **BindWidget만으로는 tag→container 맵이 채워지지 않습니다.** `NativeOnInitialized`에서 각 스택을 명시적으로 `RegisterLayer` 하세요.
   - `PushWidgetToLayerStack<T>(FGameplayTag, TSubclassOf<T>)` — **동기**(hard class) push
   - `PushWidgetToLayerStackAsync<T>(FGameplayTag, TSoftClassPtr<T>, ...)` — **비동기**(soft class + streaming handle) push. 실제 Lyra가 메뉴/모달을 여는 방식이므로 학습용으로 반드시 포함.
-  - `static UPrimaryGameLayout* GetPrimaryGameLayout(APlayerController*)` — 정적 접근자
+  - `static UCuPrimaryGameLayout* GetPrimaryGameLayout(APlayerController*)` — 정적 접근자
   - ⚠️ push는 컨테이너가 위젯을 **자동으로 activate** 합니다. Blueprint 그래프에서 push 후 다시 `ActivateWidget`을 호출하지 마세요(이중 activation 버그).
-- `UCommonLocalPlayer : ULocalPlayer` — 정책이 per-player 레이아웃 맵의 key로 삼는 아이덴티티. `DefaultEngine.ini`에서 **Local Player Class**로 지정. (단일 플레이어 kit이라도 학습 지점으로 포함하고, 어디서 split-screen이 hook되는지 주석으로 표시.)
+- `UCuLocalPlayer : ULocalPlayer` — 정책이 per-player 레이아웃 맵의 key로 삼는 아이덴티티. `DefaultEngine.ini`에서 **Local Player Class**로 지정. (단일 플레이어 kit이라도 학습 지점으로 포함하고, 어디서 split-screen이 hook되는지 주석으로 표시.)
 
 **Activatable / Button 베이스**
 
-- `UStarterActivatableWidget : UCommonActivatableWidget` — 모든 화면의 베이스.
+- `UCuActivatableWidget : UCommonActivatableWidget` — 모든 화면의 베이스.
   - 입력 모드는 **`GetDesiredInputConfig()` 오버라이드**로 `TOptional<FUIInputConfig>`를 반환해 지정합니다. `FUIInputConfig`의 모드는 **`ECommonInputMode::Menu` / `Game` / `All`** 입니다. ⚠️ **`GameAndMenu`라는 값은 없습니다**(=`All`). ⚠️ **`APlayerController::SetInputMode*`를 직접 호출하지 마세요** — CommonUI의 `UCommonUIActionRouterBase`가 입력을 관리하므로 SetInputMode는 라우터를 깨뜨립니다.
   - 포커스 대상은 `GetDesiredFocusTarget()`(C++) / `BP_GetDesiredFocusTarget`(BP) 오버라이드로 지정하고, `bAutoRestoreFocus`로 스택 복귀 시 포커스 복원.
   - Back 액션 기본 처리(Stage 4에서 `RegisterUIActionBinding`로 연결).
-- `UStarterButtonBase : UCommonButtonBase` — 버튼 텍스트 프로퍼티 + 스타일 적용 헬퍼.
+- `UCuButtonBase : UCommonButtonBase` — 버튼 텍스트 프로퍼티 + 스타일 적용 헬퍼.
 
-**화면별 베이스 (C++)**: `UTitleScreenWidget`, `UMainMenuWidget`, `USettingsScreenWidget`, `UPauseMenuWidget`, `UConfirmationModalWidget` — 로직은 C++에 최대한 유지.
+**화면별 베이스 (C++)**: `UCuTitleScreenWidget`, `UCuMainMenuWidget`, `UCuSettingsScreenWidget`, `UCuPauseMenuWidget`, `UCuConfirmationModalWidget` — 로직은 C++에 최대한 유지.
 
-**ViewModel (Stage 6용, 이번 세션엔 스텁만)**: `USettingsViewModel : UMVVMViewModelBase`
+**ViewModel (Stage 6용, 이번 세션엔 스텁만)**: `UCuSettingsViewModel : UMVVMViewModelBase`
 - `INotifyFieldValueChanged` 기반. FieldNotify `UPROPERTY` (예: master volume `float`).
 - ⚠️ setter에서 **`UE_MVVM_SET_PROPERTY_VALUE(...)`를 반드시 호출**해야 바인딩된 위젯이 갱신됩니다(빠뜨리면 무음 실패).
 - ⚠️ **`UGameUserSettings`에는 master volume 프로퍼티가 없습니다.** 볼륨은 **Sound Class/Sound Mix**(`SetSoundMixClassOverride`) 또는 커스텀 SaveGame으로 구현하세요. 해상도/vsync 등은 `UGameUserSettings`로 가능.
@@ -215,10 +220,10 @@ UGameUIManagerSubsystem  (player lifecycle)
   ;   gamepad 내비게이션·Back이 "무음"으로 전부 죽습니다. CommonUI 최다 셋업 실패 원인.
 
   [/Script/Engine.GameEngine]  ; (또는 프로젝트 상황에 맞는 위치)
-  ; Local Player Class = UCommonLocalPlayer
+  ; Local Player Class = UCuLocalPlayer
   ```
 - **`DefaultGame.ini`**
-  - `UGameUIManagerSubsystem`의 `DefaultUIPolicyClass`(config) 지정
+  - `UCuGameUIManagerSubsystem`의 `DefaultUIPolicyClass`(config) 지정
   - `[/Script/CommonInput.CommonInputSettings]`의 `InputData`(= `UCommonUIInputData` 에셋 경로) — 에셋은 Stage 4에서 생성하고 여기서 연결
 
 ### Step B-3 — 빌드 및 검증 (C++ 뼈대)
@@ -288,21 +293,21 @@ UGameUIManagerSubsystem  (player lifecycle)
 
 ### Stage 1 — CORE "hello world" Activatable
 
-- `WBP_StarterActivatable`(`UStarterActivatableWidget` 파생, `UI/Foundation`) 1개를 만들고, 임시로 PlayerController에서 화면에 표시.
+- `WBP_StarterActivatable`(`UCuActivatableWidget` 파생, `UI/Foundation`) 1개를 만들고, 임시로 PlayerController에서 화면에 표시.
 - 학습 포인트: activate/deactivate lifecycle, `GetDesiredInputConfig()`(`ECommonInputMode::Menu`), `GetDesiredFocusTarget()`.
 - **PIE 검증**: 위젯이 표시되고 gamepad 포커스가 안착하는가.
 
 ### Stage 2 — CORE "the layout"
 
-- `WBP_PrimaryGameLayout`(`UPrimaryGameLayout` 파생) — 우선 **스택 1개**(`UI.Layer.Menu`)만. Overlay 안에 `UCommonActivatableWidgetStack`을 배치하되 **`BindWidget` 이름과 정확히 일치**.
+- `WBP_PrimaryGameLayout`(`UCuPrimaryGameLayout` 파생) — 우선 **스택 1개**(`UI.Layer.Menu`)만. Overlay 안에 `UCommonActivatableWidgetStack`을 배치하되 **`BindWidget` 이름과 정확히 일치**.
 - `NativeOnInitialized`(또는 BP)에서 `RegisterLayer(Tag, Stack)` 명시 호출.
-- `UGameUIManagerSubsystem→UGameUIPolicy`가 per-LocalPlayer로 `WBP_PrimaryGameLayout`을 생성하고, Stage 1 위젯을 `PushWidgetToLayerStack`으로 push. (push 후 `ActivateWidget` 중복 호출 금지.)
+- `UCuGameUIManagerSubsystem→UCuGameUIPolicy`가 per-LocalPlayer로 `WBP_PrimaryGameLayout`을 생성하고, Stage 1 위젯을 `PushWidgetToLayerStack`으로 push. (push 후 `ActivateWidget` 중복 호출 금지.)
 - **PIE 검증**: BeginPlay 시 레이아웃 생성 + Stage 1 위젯이 push되어 표시.
 
 ### Stage 3 — CORE "navigation + style"
 
 - **스타일 에셋** (`UI/Style`): `CommonButtonStyle` 파생 `CBS_Default`/`CBS_Primary`, `CommonTextStyle` 파생 `CTS_Header`/`CTS_Body`/`CTS_Button`, (선택) `CommonBorderStyle` `CBRS_Panel`. 색상/폰트/브러시를 실제 값으로 설정(`bulk_fill`/`describe` 리플렉션 활용). ⚠️ **여기서 사전 Probe의 (c) 자동화 성패가 판가름** — 브러시/폰트 서브오브젝트가 자동으로 안 되면 수동 fallback으로 처리하고 보고.
-- `WBP_ButtonBase`(`UStarterButtonBase` 파생) — 스타일 연결 + 텍스트 블록.
+- `WBP_ButtonBase`(`UCuButtonBase` 파생) — 스타일 연결 + 텍스트 블록.
 - `WBP_TitleScreen`("Press Any Key" → 메인 메뉴 push), `WBP_MainMenu`(Start / Settings / Quit, VerticalBox).
 - **PIE 검증**: D-pad/키보드로 포커스 이동, 클릭 시 MainMenu가 push.
 
@@ -328,8 +333,8 @@ UGameUIManagerSubsystem  (player lifecycle)
 
 Common UI가 아닌 **독립 시스템**(MVVM)을 완성된 shell 위에 얹는 단계임을 명시.
 
-- `WBP_SettingsScreen`(`USettingsScreenWidget` 파생) + `UCommonTabListWidgetBase` 탭 + 옵션 항목.
-- `USettingsViewModel`(`UMVVMViewModelBase`, FieldNotify + **`UE_MVVM_SET_PROPERTY_VALUE`**). 스칼라 1개(예: master volume via **Sound Class/Mix**, `UGameUserSettings` 아님).
+- `WBP_SettingsScreen`(`UCuSettingsScreenWidget` 파생) + `UCommonTabListWidgetBase` 탭 + 옵션 항목.
+- `UCuSettingsViewModel`(`UMVVMViewModelBase`, FieldNotify + **`UE_MVVM_SET_PROPERTY_VALUE`**). 스칼라 1개(예: master volume via **Sound Class/Mix**, `UGameUserSettings` 아님).
 - ViewModel을 activatable stack에 push된 뒤에도 유지하려면 **`Resolver` creation mode**(`UMVVMViewModelContextResolver`, DI 방식) 사용 고려.
 - ⚠️ **View Binding은 사전 Probe에서 선언한 수동/Experimental-Python fallback 항목**입니다. Monolith가 MVVM binding 저작을 지원하면 자동화하되, 실패하면 `WBP_SettingsScreen`의 바인딩을 수동 체크리스트로 남기고 절차를 문서화하세요.
 - **PIE 검증**: 컨트롤 조작 → viewmodel 값 변경 → 바인딩된 label 갱신.
@@ -339,8 +344,8 @@ Common UI가 아닌 **독립 시스템**(MVVM)을 완성된 shell 위에 얹는 
 ### 레벨/프레임워크 연결
 
 - 테스트 맵 생성, GameMode/PlayerController Blueprint 생성.
-- 프로젝트 세팅(Default GameMode, Default Map, **Local Player Class = `UCommonLocalPlayer`**) 갱신.
-- `UGameUIManagerSubsystem`(→ Policy)이 `WBP_PrimaryGameLayout`을 생성하고 타이틀 화면을 push하도록 연결.
+- 프로젝트 세팅(Default GameMode, Default Map, **Local Player Class = `UCuLocalPlayer`**) 갱신.
+- `UCuGameUIManagerSubsystem`(→ Policy)이 `WBP_PrimaryGameLayout`을 생성하고 타이틀 화면을 push하도록 연결.
 
 ### 최종 검증 및 마무리
 
@@ -353,10 +358,10 @@ Common UI가 아닌 **독립 시스템**(MVVM)을 완성된 shell 위에 얹는 
 
 | 이 Starter Kit (재구현) | 실제 Lyra / 엔진 | 성격 |
 |---|---|---|
-| `UGameUIManagerSubsystem` | `UGameUIManagerSubsystem`(CommonGame, Lyra가 `ULyraUIManagerSubsystem`로 파생) | player lifecycle — **재구현** |
-| `UGameUIPolicy` | `UGameUIPolicy`(CommonGame; Lyra `B_LyraUIPolicy`) | LayoutClass 소유·per-player 생성 — **재구현** |
-| `UPrimaryGameLayout` | `UPrimaryGameLayout`(CommonGame; `W_OverallUILayout`) | 레이어 스택 소유 — **재구현** |
-| `UCommonLocalPlayer` | `UCommonLocalPlayer`(CommonGame) | per-player 아이덴티티 — **재구현(또는 유지)** |
+| `UCuGameUIManagerSubsystem` | `UGameUIManagerSubsystem`(CommonGame, Lyra가 `ULyraUIManagerSubsystem`로 파생) | player lifecycle — **재구현** |
+| `UCuGameUIPolicy` | `UGameUIPolicy`(CommonGame; Lyra `B_LyraUIPolicy`) | LayoutClass 소유·per-player 생성 — **재구현** |
+| `UCuPrimaryGameLayout` | `UPrimaryGameLayout`(CommonGame; `W_OverallUILayout`) | 레이어 스택 소유 — **재구현** |
+| `UCuLocalPlayer` | `UCommonLocalPlayer`(CommonGame) | per-player 아이덴티티 — **재구현** |
 | `UCommonActivatableWidgetStack` | 동일(CommonUI) | **엔진 재사용** |
 | `UCommonActivatableWidget` / `UCommonButtonBase` / `UCommonBoundActionBar` / `UCommonTabListWidgetBase` | 동일(CommonUI) | **엔진 재사용** |
 | `FCommonInputActionDataBase` / `UCommonUIInputData` / `UCommonInputBaseControllerData` | 동일(CommonInput) | **엔진 재사용** |

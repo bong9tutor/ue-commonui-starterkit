@@ -30,7 +30,37 @@
 
 ## 2. 네이밍 & 에셋 규칙
 
-**C++ 클래스**: 화면 베이스는 `UStarter*`/화면명(`UTitleScreenWidget`, `UMainMenuWidget` …), 레이어링은 `UGameUIManagerSubsystem`/`UGameUIPolicy`/`UPrimaryGameLayout`/`UCommonLocalPlayer`.
+**C++ 클래스 — 프로젝트 프리픽스 `Cu` (필수)**: 이 kit의 **모든 프로젝트 고유 C++ 클래스**는 UE 타입 프리픽스(`U`/`A`/`F`/`E`) 뒤에 프로젝트 프리픽스 **`Cu`**(**C**ommon**U**I StarterKit)를 붙인다. 엔진/CommonGame 재사용 타입과 우리가 재구현한 타입을 한눈에 구분하고, 특히 `UCuLocalPlayer`처럼 CommonGame 실제 클래스명(`UCommonLocalPlayer`)과의 **이름 충돌·혼동을 방지**한다.
+
+| 역할 | 클래스 |
+|------|--------|
+| 레이어링(3-class) | `UCuGameUIManagerSubsystem` / `UCuGameUIPolicy` / `UCuPrimaryGameLayout` / `UCuLocalPlayer` |
+| base widgets | `UCuActivatableWidget` / `UCuButtonBase` |
+| 화면 베이스 | `UCuTitleScreenWidget` / `UCuMainMenuWidget` / `UCuSettingsScreenWidget` / `UCuPauseMenuWidget` / `UCuConfirmationModalWidget` |
+| MVVM | `UCuSettingsViewModel` |
+| struct / enum | `FCuRootViewportLayoutInfo` / `ECuAsyncWidgetLayerState` |
+
+> 파일명은 UE 타입 프리픽스를 뺀 클래스명과 일치시킨다: `CuGameUIPolicy.h/.cpp`, `CuPrimaryGameLayout.h/.cpp`, `CuGameplayTags.h/.cpp` …
+> primary game module 클래스(`FCommonUIStarterKitModule`)와 module 이름은 모듈명 규칙을 따르므로 `Cu` 프리픽스를 붙이지 않는다.
+
+**소스 폴더 구조 — 역할별 하위폴더 (필수)**: 모든 소스를 module 루트에 **평면(flat) 배치하지 말고** `Public`/`Private` + **역할별 하위폴더**로 나눈다. 헤더는 `Public/`, 구현은 `Private/`, 하위폴더는 같은 이름으로 미러링한다.
+
+```
+Source/CommonUIStarterKit/
+├── CommonUIStarterKit.Build.cs
+├── Public/
+│   ├── CommonUIStarterKit.h            # primary game module 헤더
+│   ├── System/      # UCuGameUIManagerSubsystem, UCuGameUIPolicy, UCuLocalPlayer
+│   ├── Layout/      # UCuPrimaryGameLayout, CuGameplayTags
+│   ├── Widgets/     # UCuActivatableWidget, UCuButtonBase
+│   ├── Screens/     # UCuTitleScreen/MainMenu/SettingsScreen/PauseMenu/ConfirmationModal Widget
+│   └── ViewModels/  # UCuSettingsViewModel
+└── Private/         # Public을 미러링 (header-only 화면 베이스는 대응 .cpp 없음)
+    ├── CommonUIStarterKit.cpp
+    ├── System/  ├── Layout/  ├── Widgets/  └── ViewModels/
+```
+
+> UBT는 `Public/`과 그 **모든 하위폴더를 include 경로에 재귀적으로 추가**하므로, cross-include는 폴더 경로 없이 파일명만으로 한다: `#include "CuPrimaryGameLayout.h"` (경로 결합 불필요). `.generated.h`도 파일명 그대로 마지막 include.
 
 **에셋 접두사** (Epic 권장 + 커뮤니티 표준):
 
@@ -100,11 +130,11 @@ GameViewportClientClassName=/Script/CommonUI.CommonGameViewportClient
 - `CommonUI.Debug.CheckGameViewportClientValid=0`으로 경고를 억지로 끄지 말 것 — 그 경고는 §4 viewport client 누락의 증상이다.
 
 ```cpp
-// UStarterActivatableWidget.h
+// CuActivatableWidget.h
 virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 
-// UStarterActivatableWidget.cpp
-TOptional<FUIInputConfig> UStarterActivatableWidget::GetDesiredInputConfig() const
+// CuActivatableWidget.cpp
+TOptional<FUIInputConfig> UCuActivatableWidget::GetDesiredInputConfig() const
 {
     return FUIInputConfig(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
 }
@@ -122,12 +152,12 @@ TOptional<FUIInputConfig> UStarterActivatableWidget::GetDesiredInputConfig() con
 - ⚠️ **BindWidget 이름 일치**: `UPROPERTY(meta=(BindWidget))`는 변수 이름으로 **엄격 매칭**한다. 불일치 시 WBP 컴파일 실패(hard bind) 또는 런타임 null(`meta=(BindWidgetOptional)`). 디자이너에서 위젯 rename 시 C++ 프로퍼티도 **동시** 변경. 흔한 증상: "rename 후 버튼이 아무 반응 없음".
 
 ```cpp
-// UPrimaryGameLayout.h — BindWidget 이름 == WBP 자식 위젯 이름
+// CuPrimaryGameLayout.h — BindWidget 이름 == WBP 자식 위젯 이름
 UPROPERTY(meta = (BindWidget))
 TObjectPtr<UCommonActivatableWidgetStack> Layer_Menu;
 
-// UPrimaryGameLayout.cpp
-void UPrimaryGameLayout::NativeOnInitialized()
+// CuPrimaryGameLayout.cpp
+void UCuPrimaryGameLayout::NativeOnInitialized()
 {
     Super::NativeOnInitialized();
     RegisterLayer(TAG_UI_Layer_Menu, Layer_Menu);   // BindWidget만으로는 부족
@@ -144,8 +174,8 @@ void UPrimaryGameLayout::NativeOnInitialized()
 - viewmodel 인스턴스를 위젯 slot에 **실제 할당**해야 바인딩이 해석된다(creation mode 또는 `SetViewModel`).
 
 ```cpp
-// USettingsViewModel.cpp — load-bearing 매크로
-void USettingsViewModel::SetMasterVolume(float NewValue)
+// CuSettingsViewModel.cpp — load-bearing 매크로
+void UCuSettingsViewModel::SetMasterVolume(float NewValue)
 {
     if (UE_MVVM_SET_PROPERTY_VALUE(MasterVolume, NewValue))   // 대입 + broadcast(변경 시에만)
     {
