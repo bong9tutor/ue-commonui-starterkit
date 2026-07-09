@@ -33,7 +33,7 @@ void UCuGameUIManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	GameModePostLoginHandle = FGameModeEvents::OnGameModePostLoginEvent().AddUObject(this, &UCuGameUIManagerSubsystem::HandleGameModePostLogin);
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		GameInstance->OnLocalPlayerRemovedEvent.AddUObject(this, &UCuGameUIManagerSubsystem::HandleLocalPlayerRemoved);
+		LocalPlayerRemovedHandle = GameInstance->OnLocalPlayerRemovedEvent.AddUObject(this, &UCuGameUIManagerSubsystem::HandleLocalPlayerRemoved);
 	}
 }
 
@@ -44,6 +44,18 @@ void UCuGameUIManagerSubsystem::Deinitialize()
 		FGameModeEvents::OnGameModePostLoginEvent().Remove(GameModePostLoginHandle);
 		GameModePostLoginHandle.Reset();
 	}
+
+	// OnLocalPlayerRemovedEvent는 UGameInstance의 멤버라 GameInstance가 이미 파괴된
+	// 시점(Deinitialize 순서에 따라)일 수 있으므로 null 가드 후 Remove한다.
+	if (LocalPlayerRemovedHandle.IsValid())
+	{
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			GameInstance->OnLocalPlayerRemovedEvent.Remove(LocalPlayerRemovedHandle);
+		}
+		LocalPlayerRemovedHandle.Reset();
+	}
+
 	Super::Deinitialize();
 }
 

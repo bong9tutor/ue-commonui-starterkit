@@ -49,4 +49,10 @@ private:
 	TSoftClassPtr<UCuGameUIPolicy> DefaultUIPolicyClass;
 
 	FDelegateHandle GameModePostLoginHandle;
+
+	// OnLocalPlayerRemovedEvent(UGameInstance 멤버) 구독 핸들.
+	// AddUObject는 weak 참조라 dangling 크래시로 이어지진 않지만, Deinitialize에서 짝을 맞춰
+	// Remove하지 않으면 subsystem이 GameInstance보다 먼저 재생성/교체되는 확장 시나리오에서
+	// 유령 바인딩이 남는다. GameModePostLoginHandle과 동일한 대칭을 유지한다.
+	FDelegateHandle LocalPlayerRemovedHandle;
 };
