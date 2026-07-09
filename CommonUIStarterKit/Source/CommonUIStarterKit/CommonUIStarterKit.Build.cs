@@ -7,9 +7,10 @@
 //  - ⚠️ EnhancedInput 은 엔진 기본 활성화 plugin이다. .uproject에 넣지 않고 여기 dep으로만 참조.
 //  - 헤더를 include하면 반드시 대응 module을 여기에 추가한다(누락 시 링크/컴파일 에러).
 //
-// 세션 A(현재)는 아직 실제 UI 클래스가 없다(빈 module). 그럼에도 아래 의존 module을
-// 모두 나열하는 이유: "플러그인 컴파일 게이트 빌드"에서 이 module들이 UE 5.8에서
-// 정상 링크되는지(툴체인 + 플러그인 가용성)를 C++ 작성 '전에' 검증하기 위함.
+// 참고(역사적 경위): 이 dep 목록은 세션 A의 "플러그인 컴파일 게이트 빌드"(빈 module 상태로
+// 이 module들이 UE 5.8에서 정상 링크되는지를 C++ 작성 '전에' 먼저 검증한 단계)에서 확정됐다.
+// 지금은 System/Layout/Widgets/Screens/ViewModels 하위폴더에 이 dep을 실제로 쓰는
+// C++ 클래스 20여 개가 들어 있다. 각 dep이 왜 필요한지는 아래 개별 항목 주석을 본다.
 using UnrealBuildTool;
 
 public class CommonUIStarterKit : ModuleRules

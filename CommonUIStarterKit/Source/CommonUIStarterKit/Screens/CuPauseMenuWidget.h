@@ -1,6 +1,7 @@
-// CuPauseMenuWidget.h — 일시정지 메뉴 베이스 (Menu 레이어, 세션 C Stage 5).
+// CuPauseMenuWidget.h — 일시정지 메뉴 베이스 (GameMenu/Menu 레이어).
 //
-// 학습 노트: Resume / Settings / Quit to Title. Quit 선택 시 ConfirmationModal을 Modal 레이어에 push.
+// 학습 노트: 파생 WBP_PauseMenu의 그래프가 Resume → DeactivateWidget(self, = pop),
+//  Quit → ConfirmationModal을 Modal 레이어에 push 한다. bIsBackHandler로 Back 입력을 받는다.
 #pragma once
 
 #include "Widgets/CuActivatableWidget.h"
