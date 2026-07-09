@@ -4,7 +4,6 @@
 //  - 실제 코드 의존성(어떤 module에 링크할지)은 Build.cs가 담당한다.
 //  - DefaultBuildSettings/IncludeOrderVersion을 Latest로 두면 UE 5.8 최신 규칙(IWYU 등)을 따른다.
 using UnrealBuildTool;
-using System.Collections.Generic;
 
 public class CommonUIStarterKitTarget : TargetRules
 {

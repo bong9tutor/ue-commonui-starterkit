@@ -12,6 +12,13 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 
+namespace
+{
+	// 게임플레이 HUD보다 위, 다른 플레이어 화면 위젯보다 위에 뜨도록 넉넉히 높은 Z-Order.
+	// (익명 namespace 안이라 이미 internal linkage. static은 중복이므로 붙이지 않는다.)
+	constexpr int32 CuLayoutZOrder = 1000;
+}
+
 UCuGameUIPolicy* UCuGameUIPolicy::GetGameUIPolicy(const UObject* WorldContextObject)
 {
 	if (GEngine && WorldContextObject)
@@ -134,7 +141,8 @@ void UCuGameUIPolicy::CreateLayoutWidget(UCuLocalPlayer* LocalPlayer)
 	}
 }
 
-TSubclassOf<UCuPrimaryGameLayout> UCuGameUIPolicy::GetLayoutWidgetClass(UCuLocalPlayer* LocalPlayer)
+// LocalPlayer는 현재 미사용(향후 per-player 다른 LayoutClass override 여지를 위해 시그니처 유지).
+TSubclassOf<UCuPrimaryGameLayout> UCuGameUIPolicy::GetLayoutWidgetClass(UCuLocalPlayer* /*LocalPlayer*/)
 {
 	// soft class를 동기 로드. (LayoutClass는 세션 C의 WBP_PrimaryGameLayout 파생 BP를 가리킴)
 	return LayoutClass.LoadSynchronous();
@@ -148,10 +156,11 @@ void UCuGameUIPolicy::AddLayoutToViewport(UCuLocalPlayer* LocalPlayer, UCuPrimar
 	}
 	// per-player 화면에 붙인다(AddToViewport 아님 → split-screen에서 플레이어별 독립).
 	Layout->SetPlayerContext(FLocalPlayerContext(LocalPlayer));
-	Layout->AddToPlayerScreen(1000);
+	Layout->AddToPlayerScreen(CuLayoutZOrder);
 }
 
-void UCuGameUIPolicy::RemoveLayoutFromViewport(UCuLocalPlayer* LocalPlayer, UCuPrimaryGameLayout* Layout)
+// LocalPlayer는 현재 미사용(향후 per-player 제거 로직 override 여지를 위해 시그니처 유지).
+void UCuGameUIPolicy::RemoveLayoutFromViewport(UCuLocalPlayer* /*LocalPlayer*/, UCuPrimaryGameLayout* Layout)
 {
 	if (Layout)
 	{

@@ -4,7 +4,6 @@
 //    (빌드 커맨드: CommonUIStarterKitEditor Win64 Development)
 //  - Game 타깃과 달리 에디터 전용 module(UnrealEd 등)까지 링크되는 타입.
 using UnrealBuildTool;
-using System.Collections.Generic;
 
 public class CommonUIStarterKitEditorTarget : TargetRules
 {
