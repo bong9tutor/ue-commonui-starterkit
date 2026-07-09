@@ -1,6 +1,6 @@
 # Common UI Starter Kit — 코딩 레퍼런스 (Coding Reference)
 
-> **이 문서는 코드 작성 시 참조하는 정본(source of truth)입니다.** `common-ui-starter-kit-prompt.md`는 "무엇을 만들지"를, 이 문서는 "어떻게 정확히 쓸지"(API idiom · 함정 · 네이밍)를 담습니다.
+> **이 문서는 코드 작성 시 참조하는 정본(source of truth)입니다.** `common-ui-starter-kit-prompt.md`(동일 폴더)는 "무엇을 만들지"를, 이 문서는 "어떻게 정확히 쓸지"(API idiom · 함정 · 네이밍)를 담습니다.
 
 ## 0. 이 문서 사용법
 
@@ -30,14 +30,40 @@
 
 ## 2. 네이밍 & 에셋 규칙
 
-**C++ 클래스**: 화면 베이스는 `UStarter*`/화면명(`UTitleScreenWidget`, `UMainMenuWidget` …), 레이어링은 `UGameUIManagerSubsystem`/`UGameUIPolicy`/`UPrimaryGameLayout`/`UCommonLocalPlayer`.
+**C++ 클래스 — 프로젝트 프리픽스 `Cu` (필수)**: 이 kit의 **모든 프로젝트 고유 C++ 클래스**는 UE 타입 프리픽스(`U`/`A`/`F`/`E`) 뒤에 프로젝트 프리픽스 **`Cu`**(**C**ommon**U**I StarterKit)를 붙인다. 엔진/CommonGame 재사용 타입과 우리가 재구현한 타입을 한눈에 구분하고, 특히 `UCuLocalPlayer`처럼 CommonGame 실제 클래스명(`UCommonLocalPlayer`)과의 **이름 충돌·혼동을 방지**한다.
+
+| 역할 | 클래스 |
+|------|--------|
+| 레이어링(3-class) | `UCuGameUIManagerSubsystem` / `UCuGameUIPolicy` / `UCuPrimaryGameLayout` / `UCuLocalPlayer` |
+| base widgets | `UCuActivatableWidget` / `UCuButtonBase` |
+| 화면 베이스 | `UCuTitleScreenWidget` / `UCuMainMenuWidget` / `UCuSettingsScreenWidget` / `UCuPauseMenuWidget` / `UCuConfirmationModalWidget` |
+| MVVM | `UCuSettingsViewModel` |
+| struct / enum | `FCuRootViewportLayoutInfo` / `ECuAsyncWidgetLayerState` |
+
+> 파일명은 UE 타입 프리픽스를 뺀 클래스명과 일치시킨다: `CuGameUIPolicy.h/.cpp`, `CuPrimaryGameLayout.h/.cpp`, `CuGameplayTags.h/.cpp` …
+> primary game module 클래스(`FCommonUIStarterKitModule`)와 module 이름은 모듈명 규칙을 따르므로 `Cu` 프리픽스를 붙이지 않는다.
+
+**소스 폴더 구조 — 역할별 하위폴더 (필수)**: 모든 소스를 module 루트에 **평면(flat) 배치하지 말고** **역할별 하위폴더**로 나눈다. ⚠️ **`Public`/`Private`는 쓰지 않는다** — 이 kit은 헤더·구현(.h/.cpp)을 같은 역할 폴더에 함께 두는 방식을 택한다(작은 학습용 module에서 탐색이 단순).
+
+```
+Source/CommonUIStarterKit/
+├── CommonUIStarterKit.Build.cs
+├── CommonUIStarterKit.h / .cpp   # primary game module (루트에 유지)
+├── System/      # CuGameUIManagerSubsystem, CuGameUIPolicy, CuLocalPlayer (.h + .cpp)
+├── Layout/      # CuPrimaryGameLayout, CuGameplayTags
+├── Widgets/     # CuActivatableWidget, CuButtonBase
+├── Screens/     # Cu*Widget (header-only, 대응 .cpp 없음)
+└── ViewModels/  # CuSettingsViewModel
+```
+
+> ⚠️ **include 경로 (중요)**: `Public`/`Private`가 없으면 UBT는 module 루트를 include 경로에 **자동으로 넣지 않는다**(Public 폴더가 있을 때만 그 루트를 추가). 따라서 **Build.cs에 `PublicIncludePaths.Add(ModuleDirectory);`를 넣어 module 루트를 등록**해야 한다(§3 참조). 그래야 하위폴더 헤더를 **module 루트 기준 경로 한정**으로 include할 수 있다: `#include "System/CuGameUIPolicy.h"`, `#include "Widgets/CuActivatableWidget.h"`, `#include "Layout/CuPrimaryGameLayout.h"`. (module 루트의 `CommonUIStarterKit.h`와 각 `.generated.h`는 파일명 그대로.) 같은 폴더의 .cpp가 자기 헤더를 include할 때도 이 경로 한정 형태를 그대로 쓴다. *(이 등록을 빠뜨리면 `fatal error C1083: 'System/....h': No such file` 로 빌드가 실패한다.)*
 
 **에셋 접두사** (Epic 권장 + 커뮤니티 표준):
 
 | 유형 | 접두사 | 예 |
 |------|--------|-----|
 | Widget Blueprint | `WBP_` | `WBP_MainMenu`, `WBP_PrimaryGameLayout` |
-| Blueprint class(GameMode/PC 등) | `BP_` | `BP_StarterGameMode` |
+| Blueprint class(GameMode/PC 등) | `BP_` | `BP_StarterGameMode`, `BP_StarterPlayerController` |
 | CommonButtonStyle | `CBS_` | `CBS_Default`, `CBS_Primary` |
 | CommonTextStyle | `CTS_` | `CTS_Header`, `CTS_Body`, `CTS_Button` |
 | CommonBorderStyle | `CBRS_` | `CBRS_Panel` |
@@ -45,13 +71,13 @@
 | InputMappingContext | `IMC_` | `IMC_UI` |
 | DataTable | `DT_` | `DT_UIActions` |
 | Data Asset(UCommonUIInputData 등) | `DA_` | `DA_CommonInputData` |
-| Level/Map | `L_` | `L_StarterMap` |
+| Level/Map | `L_` | `L_StarterKit` |
 
 > `CBS_`/`CTS_`/`CBRS_`는 이 kit이 채택한 프로젝트 관례다(Common UI style 에셋에 대한 공식 표준 접두사는 없음). 일관되게만 쓰면 된다.
 
 **GameplayTag**: `UI.Layer.Game` / `UI.Layer.GameMenu` / `UI.Layer.Menu` / `UI.Layer.Modal`. 네이티브 선언은 `UE_DECLARE_GAMEPLAY_TAG_EXTERN`(헤더) + `UE_DEFINE_GAMEPLAY_TAG`(cpp).
 
-**Content 경로**: `/Game/UI/Foundation`, `/Game/UI/Menu`, `/Game/UI/HUD`, `/Game/UI/Style`, `/Game/Input`.
+**Content 경로**: `/Game/UI/Foundation`, `/Game/UI/Menu`, `/Game/UI/HUD`, `/Game/UI/Style`, `/Game/Input`, `/Game/Maps`(레벨), `/Game/Core`(GameMode/PC BP).
 
 > ⚠️ **BindWidget 이름 일치**(핵심): `UPROPERTY(meta=(BindWidget))` C++ 멤버 이름 == WBP 자식 위젯 이름을 **엄격히** 일치시킨다. 상세는 §6.
 
@@ -64,7 +90,8 @@
 - `.uproject` 활성화 plugin: `CommonUI`, `ModelViewViewModel`, `Monolith`.
 - **Build.cs 의존 module**(kit 실제 사용분): `Core`, `CoreUObject`, `Engine`, `InputCore`, `CommonUI`, `CommonInput`, `EnhancedInput`, `UMG`, `Slate`, `SlateCore`, `ModelViewViewModel`, `GameplayTags`.
   > 이 kit은 Lyra `CommonGame`을 **복사하지 않고 패턴만 재구현**하므로 `CommonGame`/`CommonUser`/`GameFeatures`/`ModularGameplay` dep은 넣지 않는다.
-- ⚠️ **헤더를 include하면 대응 module을 Build.cs에 반드시 추가**한다. 누락 시 unresolved external / missing include 빌드 에러(런타임 아님). 예: `UMVVMViewModelBase.h` → `ModelViewViewModel`.
+- ⚠️ **헤더를 include하면 대응 module을 Build.cs에 반드시 추가**한다. 누락 시 unresolved external / missing include 빌드 에러(런타임 아님). 예: `UMVVMViewModelBase.h` → `ModelViewViewModel`. MVVM FieldNotify(`Setter`/`Getter`/`FieldNotify` UPROPERTY)를 쓰면 `FieldNotification` module도 필요.
+- ⚠️ **역할별 하위폴더(§2)를 쓰고 Public/Private가 없으면 `PublicIncludePaths.Add(ModuleDirectory);`를 반드시 넣는다.** 그래야 `#include "System/CuGameUIPolicy.h"` 같은 루트 기준 경로 한정 include가 해석된다(누락 시 `C1083: No such file`). Public 폴더가 있을 때만 UBT가 그 루트를 자동 등록하기 때문이다.
 
 ---
 
@@ -78,7 +105,11 @@
 | `[/Script/CommonInput.CommonInputSettings]` (`InputData` 등) | `DefaultEngine.ini` |
 | `UGameUIManagerSubsystem`의 `DefaultUIPolicyClass`(config) | `DefaultGame.ini` |
 | Local Player Class | `DefaultEngine.ini` |
+| `[/Script/EngineSettings.GameMapsSettings]` (`EditorStartupMap`/`GameDefaultMap`) | `DefaultEngine.ini` |
+| `GlobalDefaultGameMode` (레벨 World Settings override의 INI fallback) | `DefaultEngine.ini` |
 | legacy Action/Axis, Enhanced Input 기본값 | `DefaultInput.ini` |
+
+> ⚠️ 레벨별 GameMode 지정(**World Settings `GameModeOverride`**)은 INI가 아니라 **`.umap`에 저장**된다(레벨 자립). `GlobalDefaultGameMode`는 override가 없는 맵의 프로젝트 전역 기본값(= 위 override의 INI fallback). 기본/시작 맵은 `[/Script/EngineSettings.GameMapsSettings]`의 `EditorStartupMap`(에디터가 프로젝트 열 때)·`GameDefaultMap`(패키징/스탠드얼론)로 지정.
 
 **[치명적, 절대 누락 금지]** — 없으면 `UCommonUIActionRouter`가 입력을 못 받아 gamepad 내비게이션·focus·Back이 **무음으로 전부 죽는다**(마우스만 동작해 버그가 숨음). CommonUI 최다 셋업 실패 원인.
 
@@ -100,11 +131,11 @@ GameViewportClientClassName=/Script/CommonUI.CommonGameViewportClient
 - `CommonUI.Debug.CheckGameViewportClientValid=0`으로 경고를 억지로 끄지 말 것 — 그 경고는 §4 viewport client 누락의 증상이다.
 
 ```cpp
-// UStarterActivatableWidget.h
+// CuActivatableWidget.h
 virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 
-// UStarterActivatableWidget.cpp
-TOptional<FUIInputConfig> UStarterActivatableWidget::GetDesiredInputConfig() const
+// CuActivatableWidget.cpp
+TOptional<FUIInputConfig> UCuActivatableWidget::GetDesiredInputConfig() const
 {
     return FUIInputConfig(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
 }
@@ -122,12 +153,12 @@ TOptional<FUIInputConfig> UStarterActivatableWidget::GetDesiredInputConfig() con
 - ⚠️ **BindWidget 이름 일치**: `UPROPERTY(meta=(BindWidget))`는 변수 이름으로 **엄격 매칭**한다. 불일치 시 WBP 컴파일 실패(hard bind) 또는 런타임 null(`meta=(BindWidgetOptional)`). 디자이너에서 위젯 rename 시 C++ 프로퍼티도 **동시** 변경. 흔한 증상: "rename 후 버튼이 아무 반응 없음".
 
 ```cpp
-// UPrimaryGameLayout.h — BindWidget 이름 == WBP 자식 위젯 이름
+// CuPrimaryGameLayout.h — BindWidget 이름 == WBP 자식 위젯 이름
 UPROPERTY(meta = (BindWidget))
 TObjectPtr<UCommonActivatableWidgetStack> Layer_Menu;
 
-// UPrimaryGameLayout.cpp
-void UPrimaryGameLayout::NativeOnInitialized()
+// CuPrimaryGameLayout.cpp
+void UCuPrimaryGameLayout::NativeOnInitialized()
 {
     Super::NativeOnInitialized();
     RegisterLayer(TAG_UI_Layer_Menu, Layer_Menu);   // BindWidget만으로는 부족
@@ -144,8 +175,8 @@ void UPrimaryGameLayout::NativeOnInitialized()
 - viewmodel 인스턴스를 위젯 slot에 **실제 할당**해야 바인딩이 해석된다(creation mode 또는 `SetViewModel`).
 
 ```cpp
-// USettingsViewModel.cpp — load-bearing 매크로
-void USettingsViewModel::SetMasterVolume(float NewValue)
+// CuSettingsViewModel.cpp — load-bearing 매크로
+void UCuSettingsViewModel::SetMasterVolume(float NewValue)
 {
     if (UE_MVVM_SET_PROPERTY_VALUE(MasterVolume, NewValue))   // 대입 + broadcast(변경 시에만)
     {

@@ -2,6 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "permissions": {
     "deny": [
+      "Read(/CommonUIStarterKit/Binaries/**)",
+      "Read(/CommonUIStarterKit/Intermediate/**)",
+      "Read(/CommonUIStarterKit/DerivedDataCache/**)",
+      "Read(/CommonUIStarterKit/Saved/**)",
+      "Read(/CommonUIStarterKit/Plugins/**/Binaries/**)",
+      "Read(/CommonUIStarterKit/Plugins/**/Intermediate/**)",
       "Read(/Binaries/**)",
       "Read(/Intermediate/**)",
       "Read(/DerivedDataCache/**)",

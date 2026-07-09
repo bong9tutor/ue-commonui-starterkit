@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "monolith": {
+      "command": "CommonUIStarterKit/Plugins/Monolith/Binaries/monolith_proxy.exe",
+      "args": []
+    }
+  }
+}
