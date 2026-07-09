@@ -75,18 +75,18 @@ Claude Code가 대신 진행하도록 설계했습니다. 검증된 최신 API·
 5. 프롬프트 C 전달  → Monolith MCP로 Stage 1~6 에셋 생성·검증
 ```
 
-> 프롬프트 A / B / C의 전문은 **[`common-ui-starter-kit-prompt.md`](common-ui-starter-kit-prompt.md)** 에 있습니다. 권한 프롬프트를 줄이려면 실행 **전에** `.claude/settings.json`(+ `settings.local.json`)을 대상 폴더에 미리 두는 것을 권장합니다.
+> 프롬프트 A / B / C의 전문은 **[`docs/common-ui-starter-kit-prompt.md`](docs/common-ui-starter-kit-prompt.md)** 에 있습니다. 권한 프롬프트를 줄이려면 실행 **전에** `.claude/settings.json`(+ `settings.local.json`)을 대상 폴더에 미리 두는 것을 권장합니다.
 
 ## 📁 저장소 구성
 
 ```text
 .
-├── common-ui-starter-kit-prompt.md   # ⭐ 3-세션 생성 프롬프트 (핵심 산출물)
 ├── docs/
-│   └── common-ui-coding-reference.md # 코딩 레퍼런스 정본 (API idiom·함정·네이밍)
-├── CLAUDE.md                         # Claude Code용 저장소 가이드
-├── .claude/settings.json             # 권한 allowlist (deny·MCP 신뢰; committed)
-└── .gitignore                        # UE5 프로젝트 표준
+│   ├── common-ui-starter-kit-prompt.md   # ⭐ 3-세션 생성 프롬프트 (핵심 산출물)
+│   └── common-ui-coding-reference.md     # 코딩 레퍼런스 정본 (API idiom·함정·네이밍)
+├── CLAUDE.md                             # Claude Code용 저장소 가이드
+├── .claude/settings.json                 # 권한 allowlist (deny·MCP 신뢰; committed)
+└── .gitignore                            # UE5 프로젝트 표준
 ```
 
 ## 🏛️ 설계 원칙
@@ -98,7 +98,7 @@ Claude Code가 대신 진행하도록 설계했습니다. 검증된 최신 API·
 
 ## 📚 문서
 
-- **[생성 프롬프트](common-ui-starter-kit-prompt.md)** — 세션 A/B/C 전문
+- **[생성 프롬프트](docs/common-ui-starter-kit-prompt.md)** — 세션 A/B/C 전문
 - **[코딩 레퍼런스](docs/common-ui-coding-reference.md)** — Common UI/CommonGame/MVVM/Input의 API idiom·함정(§10 체크리스트)·네이밍 + Epic C++ 표준 요약
 - **[CLAUDE.md](CLAUDE.md)** — 아키텍처·세션 재시작 제약·권한 설정 요약
 

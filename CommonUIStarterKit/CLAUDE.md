@@ -96,7 +96,7 @@ CommonUIStarterKit/
 
 ## 다음 세션 C에서 할 일 (에셋 Stage 1~6)
 
-프롬프트 C(`../common-ui-starter-kit-prompt.md` 프롬프트 C) 기준:
+프롬프트 C(`../docs/common-ui-starter-kit-prompt.md` 프롬프트 C) 기준:
 
 1. **사전 Probe**: `monolith_discover()`/`guide()`로 역량 확인 + 자동 불가 항목(특히 MVVM View Binding)을 수동 fallback 체크리스트로 `CLAUDE.md`에 기록.
 2. **Stage 1~6**을 순차 생성·**각 Stage마다 PIE 검증**:

@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 원래 **스펙/프롬프트 저장소**이며, 여기에 실제 UE 프로젝트가 **하위폴더로 containment**되어 함께 산다(2026-07-08, 세션 A부터).
 
-- `common-ui-starter-kit-prompt.md` — Claude Code가 Common UI 학습용 Starter Kit 프로젝트를 **빈 폴더에서부터 자동 생성**하도록 지시하는 프롬프트 문서. 이 저장소의 핵심 스펙 산출물이다.
+- `docs/common-ui-starter-kit-prompt.md` — Claude Code가 Common UI 학습용 Starter Kit 프로젝트를 **빈 폴더에서부터 자동 생성**하도록 지시하는 프롬프트 문서. 이 저장소의 핵심 스펙 산출물이다.
 - `docs/common-ui-coding-reference.md` — **코딩 레퍼런스 정본**(Common UI/CommonGame/MVVM/Input의 API idiom·함정·네이밍 + Epic C++ 표준 요약). 프롬프트가 "무엇을 만들지", 이 문서가 "어떻게 정확히 쓸지"를 담는다. 세션 B(C++)·세션 C(BP 로직)가 코드 작성 시 참조한다.
 - **`CommonUIStarterKit/`** — 실제 UE 5.8 C++ 프로젝트(세션 A에서 생성, **containment**). 이 폴더에서 작업할 때의 가이드·세션 진행 상태·머신 quirk는 **`CommonUIStarterKit/CLAUDE.md`**를 본다.
 
@@ -25,7 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프롬프트 문서가 기술하는 대상 아키텍처 (big picture)
 
-`common-ui-starter-kit-prompt.md`는 **세 세션** + 세션 C의 Stage 1~6 구조의 automation-first(+ 수동 fallback) 워크플로를 정의한다. **필수 재시작은 B→C(MCP 로드)뿐**이고, A→B는 컨텍스트·오류 격리를 위한 권장 체크포인트(재시작 불필요)다.
+`docs/common-ui-starter-kit-prompt.md`는 **세 세션** + 세션 C의 Stage 1~6 구조의 automation-first(+ 수동 fallback) 워크플로를 정의한다. **필수 재시작은 B→C(MCP 로드)뿐**이고, A→B는 컨텍스트·오류 격리를 위한 권장 체크포인트(재시작 불필요)다.
 
 - **세션 A (프로젝트 + 플러그인)**: 에디터 없이 UE 5.8 C++ 프로젝트 `CommonUIStarterKit` 파일 생성 — plugin(**CommonUI / ModelViewViewModel / Monolith** 활성화; CommonInput은 CommonUI plugin 내 module이라 `.uproject`에 넣지 않고 Build.cs에만, EnhancedInput은 engine-default) + Monolith 설치 + **플러그인 컴파일 게이트 빌드**(빈 module로 툴체인+플러그인이 5.8에서 링크되는지 **C++ 작성 전** 검증).
 - **세션 B (C++ 뼈대)**: 3-class 레이어링·base widgets·ViewModel 스텁·INI 작성 → C++ 빌드 → `.mcp.json` 생성 → 에디터 실행(port 9316). 끝에서 재시작.
@@ -75,11 +75,11 @@ GameViewportClientClassName=/Script/CommonUI.CommonGameViewportClient
 
 **`.claudeignore`는 쓰지 않는다** — Claude Code 정식 기능이 아니라 강제되지 않는다. 노이즈 제외는 위 `deny Read()`(강제됨)와 `.gitignore`(발견 단계 제외)로 처리한다.
 
-동일 템플릿이 `common-ui-starter-kit-prompt.md`의 **Step A-0**에 있으며, 프롬프트 실행 대상 폴더에서도 가장 먼저 이 파일을 만들도록 지시한다. 광범위 allow는 "본인 머신에서 본인 UE 프로젝트를 빌드하는 로컬 자동화"라는 전제에서의 선택이다.
+동일 템플릿이 `docs/common-ui-starter-kit-prompt.md`의 **Step A-0**에 있으며, 프롬프트 실행 대상 폴더에서도 가장 먼저 이 파일을 만들도록 지시한다. 광범위 allow는 "본인 머신에서 본인 UE 프로젝트를 빌드하는 로컬 자동화"라는 전제에서의 선택이다.
 
 ## 빌드 / 테스트
 
-현재 저장소에는 빌드 시스템·테스트가 없다(마크다운 문서뿐). 대상 UE 프로젝트의 빌드·실행 절차는 `common-ui-starter-kit-prompt.md`의 **Step A-4**(플러그인 게이트 빌드)·**Step B-3**(C++ 뼈대 빌드)·**Step B-4**(에디터 실행), 검증은 세션 C 각 Stage의 PIE smoke test에 정의되어 있다.
+현재 저장소에는 빌드 시스템·테스트가 없다(마크다운 문서뿐). 대상 UE 프로젝트의 빌드·실행 절차는 `docs/common-ui-starter-kit-prompt.md`의 **Step A-4**(플러그인 게이트 빌드)·**Step B-3**(C++ 뼈대 빌드)·**Step B-4**(에디터 실행), 검증은 세션 C 각 Stage의 PIE smoke test에 정의되어 있다.
 
 ## Monolith MCP 사용 규칙 (세션 C)
 

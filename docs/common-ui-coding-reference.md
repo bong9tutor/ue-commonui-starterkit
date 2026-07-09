@@ -1,6 +1,6 @@
 # Common UI Starter Kit — 코딩 레퍼런스 (Coding Reference)
 
-> **이 문서는 코드 작성 시 참조하는 정본(source of truth)입니다.** `common-ui-starter-kit-prompt.md`는 "무엇을 만들지"를, 이 문서는 "어떻게 정확히 쓸지"(API idiom · 함정 · 네이밍)를 담습니다.
+> **이 문서는 코드 작성 시 참조하는 정본(source of truth)입니다.** `common-ui-starter-kit-prompt.md`(동일 폴더)는 "무엇을 만들지"를, 이 문서는 "어떻게 정확히 쓸지"(API idiom · 함정 · 네이밍)를 담습니다.
 
 ## 0. 이 문서 사용법
 
