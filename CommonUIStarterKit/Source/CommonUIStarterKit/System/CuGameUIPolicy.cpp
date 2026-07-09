@@ -76,9 +76,27 @@ void UCuGameUIPolicy::NotifyPlayerAdded(UCuLocalPlayer* LocalPlayer)
 	// PlayerController가 (재)설정되면 레이아웃을 (재)생성하도록 구독.
 	//  - 세션 C의 PIE에서 타이밍을 검증한다. GameMode PostLogin 경로(subsystem)와 함께
 	//    이 델리게이트 경로가 PC 교체/지연 생성 케이스를 커버한다.
+	//  - NotifyPlayerAdded는 HandleGameModePostLogin(재로그인/seamless travel 포함)마다
+	//    다시 호출될 수 있다. RemoveAll(this) 없이 AddWeakLambda만 하면 같은 람다가
+	//    누적 구독되어, 다음 PC 세팅 시 N번 중복 발화 → 아래 CreateLayoutWidget도 N번
+	//    호출되는 잠복 버그가 있었다. 여기서 먼저 이전 구독을 정리해 항상 1개만 유지한다.
+	//    (이 델리게이트의 구독자는 policy(this) 하나뿐이라 RemoveAll(this)가 다른 리스너를
+	//    건드리지 않는다 — RemoveAll은 UserObject==this로 바인딩된 것만 걸러 제거한다.)
+	LocalPlayer->OnPlayerControllerSet.RemoveAll(this);
 	LocalPlayer->OnPlayerControllerSet.AddWeakLambda(this, [this](UCuLocalPlayer* InLocalPlayer, APlayerController* /*PlayerController*/)
 	{
-		NotifyPlayerRemoved(InLocalPlayer);
+		// 주의: NotifyPlayerRemoved가 아니라 NotifyPlayerDestroyed를 불러야 한다.
+		//  - NotifyPlayerRemoved: 뷰포트에서 위젯만 내리고(bAddedToViewport=false) RootViewportLayouts의
+		//    엔트리는 그대로 남긴다(재부착을 대비한 설계).
+		//  - NotifyPlayerDestroyed: 위 NotifyPlayerRemoved를 호출한 뒤 배열 엔트리 자체를 제거한다.
+		//    PC가 교체되어 레이아웃을 통째로 새로 만드는 이 경로에서 NotifyPlayerRemoved만 쓰면,
+		//    뒤따르는 CreateLayoutWidget의 무조건 Emplace가 같은 LocalPlayer 키로 새 엔트리를 추가해
+		//    RootViewportLayouts에 stale 엔트리가 중복 누적된다. GetRootLayout은 FindByKey(첫 매치)라
+		//    이미 뷰포트에서 내려간 옛 레이아웃을 반환하고, 새 레이아웃은 조회 불가 + 사실상 누수가 된다.
+		//    NotifyPlayerDestroyed로 옛 엔트리를 먼저 지워야 새 Emplace 이후 엔트리가 정확히 1개로 유지된다.
+		//  - 더 근본적인 해법은 CreateLayoutWidget 자체를 find-or-add(upsert)로 바꾸는 것이지만,
+		//    이번 수정은 기존 함수 시맨틱을 건드리지 않는 최소 변경을 택했다.
+		NotifyPlayerDestroyed(InLocalPlayer);
 		CreateLayoutWidget(InLocalPlayer);
 	});
 
