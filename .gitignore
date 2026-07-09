@@ -54,12 +54,38 @@ Build/*/**
 # monolith_proxy.exe 등 바이너리는 릴리스에서 재설치하므로 통째로 무시
 Plugins/Monolith/
 
+# IDE(JetBrains Rider)가 프로젝트 오픈 시 자동 생성하는 UnrealLink 플러그인 — tool-generated, 커밋 금지
+Plugins/Developer/
+
 # 자체 작성 플러그인은 커밋하되, 그 빌드 산출물만 무시
 Plugins/*/Binaries/
 Plugins/*/Intermediate/
 
+# ============================================================
+# Containment 구조: UE 프로젝트가 이 저장소의 CommonUIStarterKit/ 하위폴더에 있음.
+# 위 Binaries//Intermediate//Saved//DerivedDataCache/ 등 "끝 슬래시" 패턴은
+# gitignore 규칙상 모든 depth에서 매칭되지만, "중간 슬래시" 패턴
+# (Build/*, Plugins/Monolith/, Plugins/*/Binaries/ 등)은 저장소 루트에만
+# 앵커되므로 하위폴더용 패턴을 아래에 명시적으로 추가한다.
+# ============================================================
+CommonUIStarterKit/Build/*
+!CommonUIStarterKit/Build/*/
+CommonUIStarterKit/Build/*/**
+!CommonUIStarterKit/Build/**/*.ico
+!CommonUIStarterKit/Build/*/PakBlacklist*.txt
+# 제3자 편집 자동화 플러그인(재설치 대상, 학습 콘텐츠 아님) 통째 무시
+CommonUIStarterKit/Plugins/Monolith/
+# IDE(Rider)가 자동 생성하는 UnrealLink 플러그인 — tool-generated, 커밋 금지
+CommonUIStarterKit/Plugins/Developer/
+# 자체 플러그인은 커밋하되 빌드 산출물만 무시
+CommonUIStarterKit/Plugins/*/Binaries/
+CommonUIStarterKit/Plugins/*/Intermediate/
+
 # --- Claude Code 로컬 설정(개인 오버라이드)은 무시, settings.json은 커밋 ---
 .claude/settings.local.json
+
+# --- 머신 전용 셋업 헬퍼(엔진 경로 하드코딩, 이식성 없음) — 로컬에만 두고 커밋 금지 ---
+register-ue58-engine.reg
 
 # --- OS 부산물 ---
 .DS_Store

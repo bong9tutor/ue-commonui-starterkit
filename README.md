@@ -50,9 +50,20 @@ Claude Code가 대신 진행하도록 설계했습니다. 검증된 최신 API·
 ### 사전 요구사항
 
 - **Unreal Engine 5.8** (또는 5.7) + **Visual Studio** (C++ 게임 개발 워크로드)
+- **.NET 10 SDK (x64)** — IDE(Rider / Visual Studio)에서 `.uproject`를 열 때 필요 (아래 note 참고)
 - **[Claude Code](https://claude.com/claude-code)**
 - **[Monolith MCP](https://github.com/tumourlove/monolith)** (UE 5.7 & 5.8 지원, MIT) — 세션 A에서 설치
 - git
+
+> **ℹ️ .NET 10 SDK — IDE 프로젝트 로딩에 필요** — UE 5.8의 UnrealBuildTool(UBT)은 **.NET 10**을 타깃합니다. 커맨드라인 빌드(`Build.bat` / `RunUBT`)는 **엔진에 번들된 .NET 10**을 써서 별도 설치 없이 동작하지만, **Rider·Visual Studio는 시스템 `dotnet`으로 UBT를 실행**하므로 시스템에 .NET 10이 없으면 `.uproject` 로딩이 다음 오류로 실패합니다:
+> `You must install or update .NET to run this application. … Framework: 'Microsoft.NETCore.App', version '10.0.0'`
+> winget으로 설치하세요(설치 중 UAC 승인이 필요할 수 있음). `-e --id`로 패키지를 정확히 지정합니다:
+> ```powershell
+> winget install -e --id Microsoft.DotNet.SDK.10 --architecture x64
+> # 런타임만 필요하면(UBT엔 이걸로도 충분): winget install -e --id Microsoft.DotNet.Runtime.10 --architecture x64
+> ```
+> (`--scope machine`을 붙이면 패키지가 해당 스코프를 지원하지 않아 설치가 진행되지 않을 수 있으니 위 형태를 사용합니다.)
+> 설치 확인 후 IDE 재시작: `dotnet --list-runtimes | Select-String 'NETCore.App 10'` (기존 .NET 8/9와 공존하며 영향 없음).
 
 ### 실행
 
@@ -64,18 +75,18 @@ Claude Code가 대신 진행하도록 설계했습니다. 검증된 최신 API·
 5. 프롬프트 C 전달  → Monolith MCP로 Stage 1~6 에셋 생성·검증
 ```
 
-> 프롬프트 A / B / C의 전문은 **[`common-ui-starter-kit-prompt.md`](common-ui-starter-kit-prompt.md)** 에 있습니다. 권한 프롬프트를 줄이려면 실행 **전에** `.claude/settings.json`(+ `settings.local.json`)을 대상 폴더에 미리 두는 것을 권장합니다.
+> 프롬프트 A / B / C의 전문은 **[`docs/common-ui-starter-kit-prompt.md`](docs/common-ui-starter-kit-prompt.md)** 에 있습니다. 권한 프롬프트를 줄이려면 실행 **전에** `.claude/settings.json`(+ `settings.local.json`)을 대상 폴더에 미리 두는 것을 권장합니다.
 
 ## 📁 저장소 구성
 
 ```text
 .
-├── common-ui-starter-kit-prompt.md   # ⭐ 3-세션 생성 프롬프트 (핵심 산출물)
 ├── docs/
-│   └── common-ui-coding-reference.md # 코딩 레퍼런스 정본 (API idiom·함정·네이밍)
-├── CLAUDE.md                         # Claude Code용 저장소 가이드
-├── .claude/settings.json             # 권한 allowlist (deny·MCP 신뢰; committed)
-└── .gitignore                        # UE5 프로젝트 표준
+│   ├── common-ui-starter-kit-prompt.md   # ⭐ 3-세션 생성 프롬프트 (핵심 산출물)
+│   └── common-ui-coding-reference.md     # 코딩 레퍼런스 정본 (API idiom·함정·네이밍)
+├── CLAUDE.md                             # Claude Code용 저장소 가이드
+├── .claude/settings.json                 # 권한 allowlist (deny·MCP 신뢰; committed)
+└── .gitignore                            # UE5 프로젝트 표준
 ```
 
 ## 🏛️ 설계 원칙
@@ -87,7 +98,7 @@ Claude Code가 대신 진행하도록 설계했습니다. 검증된 최신 API·
 
 ## 📚 문서
 
-- **[생성 프롬프트](common-ui-starter-kit-prompt.md)** — 세션 A/B/C 전문
+- **[생성 프롬프트](docs/common-ui-starter-kit-prompt.md)** — 세션 A/B/C 전문
 - **[코딩 레퍼런스](docs/common-ui-coding-reference.md)** — Common UI/CommonGame/MVVM/Input의 API idiom·함정(§10 체크리스트)·네이밍 + Epic C++ 표준 요약
 - **[CLAUDE.md](CLAUDE.md)** — 아키텍처·세션 재시작 제약·권한 설정 요약
 
