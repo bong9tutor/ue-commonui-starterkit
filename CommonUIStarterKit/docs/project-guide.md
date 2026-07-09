@@ -81,6 +81,15 @@ LocalPlayerClassName=/Script/CommonUIStarterKit.CuLocalPlayer
 
 **레이아웃 생성 트리거** (재구현 선택) — subsystem이 `FGameModeEvents::OnGameModePostLoginEvent`(PC 로그인 = PC 확보 보장) + `UGameInstance::OnLocalPlayerRemovedEvent`에 바인딩해 policy에 위임한다. policy는 `UCuLocalPlayer::OnPlayerControllerSet`에도 구독한다(PC 교체·지연 대응).
 
+⚠️ **세 번째 트리거(`OnPlayerControllerSet`)는 아직 Broadcast하는 코드가 없다.** 즉 구독만 걸려 있고 발화하지 않는다. 이 델리게이트를 실제로 구동하는 코드를 추가한다면, 아래 두 가지를 **PIE로 반드시 재검증**하라. 지금은 정적 검증만 되어 있다.
+
+- `RootViewportLayouts`에 같은 LocalPlayer 키로 엔트리가 하나만 남는가
+- `NotifyPlayerAdded` 재호출 시 구독이 누적되지 않는가
+
+`NotifyPlayerRemoved`(뷰포트에서 위젯만 내리고 배열 엔트리는 남김)와 `NotifyPlayerDestroyed`(엔트리까지 제거)의 차이가 이 경로의 핵심이다. 재생성 경로에서 전자를 쓰면 뒤따르는 `CreateLayoutWidget`의 무조건 `Emplace`가 중복 엔트리를 만들고, `GetRootLayout`의 `FindByKey`가 stale 레이아웃을 반환한다.
+
+**후속 과제**: `CreateLayoutWidget`을 find-or-add(upsert)로 만들면 이 함정 자체가 사라진다. 함수 시맨틱을 바꾸는 변경이라 미뤄 두었다.
+
 **BP에 노출된 push 헬퍼** — `UCuPrimaryGameLayout::PushWidgetToLayerStack`은 **template(비-UFUNCTION)**이라 BP에 노출되지 않고, 네이티브 GameplayTag도 BP에 직접 보이지 않는다. `UCommonActivatableWidgetStack`에도 BP 노출 add/push 메서드가 없다. 그래서 BP 저작용으로 다음을 C++에 추가했다(Lyra의 `UCommonUIExtensions::PushContentToLayer`에 대응).
 
 - `UFUNCTION(BlueprintCallable) PushWidgetToLayer(FGameplayTag, TSubclassOf<UCommonActivatableWidget>)` · `RemoveWidgetFromLayer`
@@ -132,3 +141,17 @@ LocalPlayerClassName=/Script/CommonUIStarterKit.CuLocalPlayer
 ## 남은 수동 작업
 
 - **MVVM View Binding** — `WBP_SettingsScreen`의 View Bindings를 에디터에서 `UCuSettingsViewModel`에 수동 연결.
+
+## 후속 과제 (의도적으로 미룬 것)
+
+2026-07-09 코드 리뷰에서 발견했으나 손대지 않기로 한 것들. 상세는 [`session-log.md`](session-log.md)의 "코드 리뷰 & 리팩토링" 절에 있다.
+
+| 항목 | 왜 미뤘나 |
+|---|---|
+| `CreateLayoutWidget`을 upsert로 | 함수 시맨틱 변경. 중복 엔트리 함정을 근본적으로 없앤다. |
+| `PushWidgetToLayerStackAsync` + `ECuAsyncWidgetLayerState` 제거 | 호출처 0건이지만 "Lyra가 메뉴/모달을 여는 실제 방식"이라 학습용으로 남긴 것. 지우면 헤더의 `AssetManager.h`/`StreamableManager.h` heavy include도 함께 사라진다. 두 항목은 한 몸. |
+| Build.cs의 `EnhancedInput`·`InputCore`·`Slate`·`SlateCore` 제거 | 소스에서 직접 사용 0건이지만 "gameplay 액션 전용 선반영" 주석이 있다. 제거하려면 콜드 빌드 링크 게이트 검증 필요. |
+| `.uproject`의 Monolith에 `"TargetAllowList": ["Editor"]` | 개발용 MCP 플러그인이 Game/Shipping 타깃에도 활성이다. Game 타깃 빌드 + 패키징 스모크로 별도 검증 필요. |
+| `RemoveWidgetFromLayer` / `FindAndRemoveWidgetFromLayer` | BP 노출 API인데 어떤 그래프도 안 쓴다(모든 화면이 `DeactivateWidget()` self-pop 사용). 이름 계약이라 함부로 지울 수 없다. |
+
+⚠️ **`.mcp.json`의 `command` 경로는 검증할 수 없다.** `.claude/settings.json`의 deny 규칙이 `Plugins/**/Binaries/**` 접근을 막아 `ls`·`glob`·`Test-Path`가 전부 거부된다. 실제로 이 프록시로 MCP 연결에 성공한 기록이 있으므로, 도구가 "파일 없음"이라 보고하면 그것은 **deny 규칙이 만든 위양성**이다. 고치려 들지 말 것.

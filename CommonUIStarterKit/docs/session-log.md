@@ -110,3 +110,48 @@ Monolith v0.20.3 연결 확인(port 9316, 에디터 PID 35224, engine CL 5511680
 - 에디터 재시작 → 전체 INI 로드(`DefaultUIPolicyClass`·`EditorStartupMap`·`CommonInputSettings.InputData`). `get_editor_world()=='L_StarterKit'`.
 - 통합 PIE: 타이틀 자동 push(Menu depth 1) → 런타임 push로 MainMenu(Menu depth 2)·ConfirmationModal(Modal depth 1) 렌더 확인. **errored blueprint 0, error-level 로그 0, 크래시 0.**
 - `README.md` 작성 완료(프로젝트 개요·3세션·Stage 0~6·에셋 목록·Lyra 대응표·수동 fallback·Stage 7).
+
+---
+
+## 코드 리뷰 & 리팩토링 (2026-07-09)
+
+Stage 0~6 완료 후 `ue-code-reviewer` / `ue-code-refactorer` 서브에이전트로 전수 감사를 수행했다. 리뷰어에게는 사전 조사 결과를 주지 않고 독립적으로 찾게 했다.
+
+**기준선**: 문서 재편 커밋(`fa3b9ef`) 시점에서 콜드 빌드 `Result: Succeeded`, 우리 코드 에러·경고 0.
+
+### 고친 것 (커밋 4개)
+
+| 커밋 | 내용 |
+|---|---|
+| `57ff031` | 낡은 주석 7곳 정정 (주석 전용) |
+| `c06e95c` | 매직 넘버 `1000` → `CuLayoutZOrder`, 미사용 파라미터 주석 처리, 미사용 `using` 제거 |
+| `74476b8` | `OnLocalPlayerRemovedEvent` 언바인딩 누락 → `LocalPlayerRemovedHandle`로 대칭 복원 |
+| `686b3d6` | **레이아웃 재생성 경로의 중복 엔트리 + 중복 바인딩** (치명, 잠복) |
+
+**`686b3d6`이 고친 버그** — `NotifyPlayerAdded`가 `OnPlayerControllerSet`에 거는 람다에 결함이 둘 있었다.
+
+- `AddWeakLambda`를 매번 다시 걸면서 `RemoveAll(this)` 가드가 없어, PostLogin 반복 시 구독이 누적된다.
+- 람다가 부르던 `NotifyPlayerRemoved`는 배열 엔트리를 남기는데, 뒤따르는 `CreateLayoutWidget`이 무조건 `Emplace`한다. 같은 LocalPlayer 키로 엔트리가 둘이 되고 `GetRootLayout`의 `FindByKey`가 stale 레이아웃을 반환한다.
+
+수정: `RemoveAll(this)` 추가 + 람다 본문을 `NotifyPlayerDestroyed`로 교체.
+
+⚠️ **이 경로는 PIE로 검증할 수 없다.** `OnPlayerControllerSet.Broadcast()` 호출처가 저장소에 0건이라 발화하지 않는다. 정적 검증(콜드 빌드 + 리뷰어 단독 집중 리뷰)만 했다. 지금 고친 이유는 잠복 상태라 회귀 위험이 0이기 때문이다.
+
+### 리뷰어가 독립적으로 찾은 것
+
+선입견 없이 돌렸을 때 위 4건을 모두 짚었고, 특히 `686b3d6`을 최우선(무음 실패)으로 올렸다. Public/Private 미사용이나 플러그인의 Build.cs dep 배치를 "위반"으로 오탐하지 않았다. `686b3d6` 단독 리뷰와 누적 diff 최종 리뷰 모두 **통과**.
+
+리뷰어가 추가로 짚은 것: `RemoveWidgetFromLayer`/`FindAndRemoveWidgetFromLayer`가 BP 노출 API인데 어떤 그래프도 쓰지 않는다(모든 화면이 `DeactivateWidget()` self-pop). 이름 계약이라 손대지 않고 후속 과제로 남겼다.
+
+### 최종 검증
+
+- **콜드 재빌드**(`Rebuild.bat`, 198 액션): `Result: Succeeded`. 에러 0. 경고 22건은 **전부 Monolith 플러그인 자체 소스**(C4996 deprecation), 우리 모듈 0건.
+- **PIE 스모크**(`run_pie_smoke` → `poll_pie_smoke`): `ok:true`. Blueprint Runtime Error 0, Accessed None 0, teardown 클린.
+- **라이브 위젯 트리**: `ui.get_activatable_stack_state(Layer_Menu)` → `stack_depth=1`, `active=WBP_TitleScreen_C`. subsystem→policy→layout 체인과 `UCuLocalPlayer` 캐스팅, 타이틀 자동 push 모두 회귀 없음.
+- `list_errored_blueprints` 0건.
+
+### 도구 사용 중 발견한 함정
+
+- **`Binaries/` 접근이 deny 규칙으로 전면 차단된다.** `ls`·`glob`·`Test-Path` 모두 거부된다. 그래서 `.mcp.json`이 가리키는 `monolith_proxy.exe`의 존재 여부를 확인할 수 없다. 조사 에이전트가 이를 "死경로"로 단정했으나 **위양성**이었다(실제로 MCP 연결은 성공한다).
+- **서브에이전트 세션에서는 `Saved/Logs` 접근이 PowerShell로도 막힌다.** 가이드는 메인 에이전트 기준으로 `Get-Content`가 허용된다고 적고 있으나, 리뷰어 세션에서는 거부됐다. 로그 열람이 필요하면 메인 세션에서 해야 한다.
+- `editor.run_python`의 파라미터 이름은 `code`가 아니라 **`command`**다. `unreal` python 모듈에 `find_objects_of_class`는 없다.

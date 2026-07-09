@@ -74,10 +74,12 @@ model: sonnet
 ## 에이전트 실행 제약
 
 - **쉘은 진단 전용입니다.** `Bash`/`PowerShell`이 있는 이유는 `git diff`·`git status`·로그 조회 때문입니다. 파일을 쓰거나(`Set-Content`, `Out-File`, `>`) 되돌리거나(`git checkout --`, `git restore`) 지우지 마세요. 빌드도 직접 돌리지 말고 명령만 제안하세요.
-- **로그는 PowerShell로 읽습니다.** `Saved/`는 `Read` 도구가 차단하므로:
-  ```powershell
-  Get-Content CommonUIStarterKit\Saved\Logs\*.log | Select-String -Pattern "Error|Warning|LogMonolith"
-  ```
+- **빌드 산출물 경로는 읽을 수 없습니다.** `.claude/settings.json`의 deny 규칙이 `Saved/`·`Binaries/`·`Intermediate/`를 막고, 서브에이전트 세션에서는 `Read`뿐 아니라 `ls`·`glob`·PowerShell `Get-Content`/`Test-Path`까지 거부됩니다.
+  - 따라서 **"그 경로에 파일이 없다"고 단정하지 마세요.** 접근 거부와 파일 부재는 다릅니다. 예를 들어 `.mcp.json`이 가리키는 `Plugins/Monolith/Binaries/`의 실행 파일은 확인할 수 없으며, 실제로는 존재합니다.
+  - 로그 열람이 필요하면 호출한 쪽(메인 세션)에 명령을 제안하세요:
+    ```powershell
+    Get-Content CommonUIStarterKit\Saved\Logs\*.log | Select-String -Pattern "Error|Warning|LogMonolith"
+    ```
 - 저장소 루트와 UE 프로젝트 루트(`CommonUIStarterKit/`)는 다릅니다. 경로를 섞지 마세요.
 
 ## 출력 형식
