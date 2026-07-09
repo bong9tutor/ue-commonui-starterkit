@@ -84,7 +84,12 @@ Claude Code가 대신 진행하도록 설계했습니다. 검증된 최신 API·
 ├── docs/
 │   ├── common-ui-starter-kit-prompt.md   # ⭐ 3-세션 생성 프롬프트 (핵심 산출물)
 │   └── common-ui-coding-reference.md     # 코딩 레퍼런스 정본 (API idiom·함정·네이밍)
-├── CLAUDE.md                             # Claude Code용 저장소 가이드
+├── CommonUIStarterKit/                   # 실제 UE 5.8 프로젝트 (containment)
+│   └── docs/
+│       ├── project-guide.md              # 머신 환경·코드 구조·확정 결정·함정
+│       └── session-log.md                # 세션 A/B/C 진행 기록
+├── CLAUDE.md                             # Claude Code용 저장소 가이드 (유일한 자동 로드 지시문)
+├── .claude/agents/                       # 서브에이전트: 코드 리뷰어 · 리팩토러
 ├── .claude/settings.json                 # 권한 allowlist (deny·MCP 신뢰; committed)
 └── .gitignore                            # UE5 프로젝트 표준
 ```
@@ -100,7 +105,9 @@ Claude Code가 대신 진행하도록 설계했습니다. 검증된 최신 API·
 
 - **[생성 프롬프트](docs/common-ui-starter-kit-prompt.md)** — 세션 A/B/C 전문
 - **[코딩 레퍼런스](docs/common-ui-coding-reference.md)** — Common UI/CommonGame/MVVM/Input의 API idiom·함정(§10 체크리스트)·네이밍 + Epic C++ 표준 요약
-- **[CLAUDE.md](CLAUDE.md)** — 아키텍처·세션 재시작 제약·권한 설정 요약
+- **[프로젝트 가이드](CommonUIStarterKit/docs/project-guide.md)** — UE 프로젝트를 건드리기 전에 읽을 것: 머신 환경·코드 구조·확정 결정·함정
+- **[세션 로그](CommonUIStarterKit/docs/session-log.md)** — 세션 A/B/C와 Stage 0~6 진행 기록
+- **[CLAUDE.md](CLAUDE.md)** — containment 구조·세션 재시작 제약·권한 설정·문서 지도
 
 ## ⚠️ 알아둘 점
 
